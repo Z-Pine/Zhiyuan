@@ -19,6 +19,11 @@ dependencies:
   cached_network_image: ^3.3.0
   flutter_svg: ^2.0.9
   pull_to_refresh: ^2.0.0
+  pdf: ^3.10.4
+  printing: ^5.11.0
+  path_provider: ^2.1.1
+  share_plus: ^7.2.1
+  excel: ^4.0.2
 
 dev_dependencies:
   flutter_test:
