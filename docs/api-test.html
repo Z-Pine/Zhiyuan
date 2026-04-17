@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API测试 - 志愿填报助手</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+            background: #f5f6fa;
+            padding: 20px;
+            padding-bottom: 100px;
+        }
+        .header {
+            background: linear-gradient(135deg, #4F86F7 0%, #667eea 100%);
+            color: white;
+            padding: 30px 20px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        .header p {
+            opacity: 0.8;
+            font-size: 14px;
+        }
+        .section {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .method {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            color: white;
+        }
+        .method.post { background: #52c41a; }
+        .method.get { background: #1890ff; }
+        .method.put { background: #fa8c16; }
+        .method.delete { background: #ff4d4f; }
+        
+        .form-group {
+            margin-bottom: 12px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 6px;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e5e5e5;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: monospace;
+        }
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: #4F86F7;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #3a7be8;
+        }
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .result {
+            margin-top: 16px;
+            padding: 12px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .result.success { background: #f6ffed; border: 1px solid #b7eb8f; }
+        .result.error { background: #fff2f0; border: 1px solid #ffccc7; }
+        
+        .info-box {
+            background: #e6f7ff;
+            border: 1px solid #91d5ff;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: #1890ff;
+        }
+        
+        .token-box {
+            background: #fff7e6;
+            border: 1px solid #ffd591;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+            font-size: 13px;
+        }
+        .token-box label {
+            color: #fa8c16;
+            font-weight: 500;
+        }
+        .token-box input {
+            width: 100%;
+            margin-top: 8px;
+            padding: 8px;
+            border: 1px solid #ffd591;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .nav-tab {
+            padding: 8px 16px;
+            background: #f5f5f5;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #666;
+        }
+        .nav-tab.active {
+            background: #4F86F7;
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>API 测试工具</h1>
+        <p>志愿填报助手 - 后端接口测试</p>
+    </div>
+    
+    <div class="info-box">
+        💡 提示：开发环境下，发送验证码后请查看后端控制台获取验证码
+    </div>
+    
+    <div class="token-box">
+        <label>🔐 JWT Token（登录后自动更新）</label>
+        <input type="text" id="token" placeholder="登录后会自动填充Token" onchange="updateToken()">
+    </div>
+    
+    <div class="nav-tabs">
+        <button class="nav-tab active" onclick="showTab('auth')">认证</button>
+        <button class="nav-tab" onclick="showTab('student')">考生</button>
+        <button class="nav-tab" onclick="showTab('school')">院校</button>
+        <button class="nav-tab" onclick="showTab('recommend')">推荐</button>
+    </div>
+    
+    <!-- 认证接口 -->
+    <div id="auth" class="tab-content active">
+        <div class="section">
+            <div class="section-title">
+                <span class="method post">POST</span>
+                发送验证码
+            </div>
+            <div class="form-group">
+                <label>手机号</label>
+                <input type="text" id="sendCodePhone" placeholder="13800138000">
+            </div>
+            <button class="btn btn-primary" onclick="sendCode()">发送验证码</button>
+            <div class="result" id="sendCodeResult"></div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">
+                <span class="method post">POST</span>
+                注册
+            </div>
+            <div class="form-group">
+                <label>手机号</label>
+                <input type="text" id="regPhone" placeholder="13800138000">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="regPassword" placeholder="至少6位">
+            </div>
+            <div class="form-group">
+                <label>验证码</label>
+                <input type="text" id="regCode" placeholder="6位验证码">
+            </div>
+            <button class="btn btn-primary" onclick="register()">注册</button>
+            <div class="result" id="registerResult"></div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">
+                <span class="method post">POST</span>
+                登录
+            </div>
+            <div class="form-group">
+                <label>手机号</label>
+                <input type="text" id="loginPhone" placeholder="13800138000">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="loginPassword" placeholder="密码">
+            </div>
+            <button class="btn btn-primary" onclick="login()">登录</button>
+            <div class="result" id="loginResult"></div>
+        </div>
+    </div>
+    
+    <!-- 考生接口 -->
+    <div id="student" class="tab-content">
+        <div class="section">
+            <div class="section-title">
+                <span class="method get">GET</span>
+                获取考生列表
+            </div>
+            <button class="btn btn-primary" onclick="getStudents()">获取列表</button>
+            <div class="result" id="getStudentsResult"></div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">
+                <span class="method post">POST</span>
+                添加考生
+            </div>
+            <div class="form-group">
+                <label>考生姓名</label>
+                <input type="text" id="studentName" placeholder="王小明">
+            </div>
+            <div class="form-group">
+                <label>省份</label>
+                <input type="text" id="studentProvince" value="广东">
+            </div>
+            <div class="form-group">
+                <label>科类</label>
+                <input type="text" id="studentCategory" value="物理类">
+            </div>
+            <button class="btn btn-primary" onclick="addStudent()">添加考生</button>
+            <div class="result" id="addStudentResult"></div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">
+                <span class="method post">POST</span>
+                录入成绩
+            </div>
+            <div class="form-group">
+                <label>考生ID</label>
+                <input type="number" id="scoreStudentId" placeholder="1">
+            </div>
+            <div class="form-group">
+                <label>高考分数</label>
+                <input type="number" id="scoreTotal" placeholder="586">
+            </div>
+            <div class="form-group">
+                <label>全省排名</label>
+                <input type="number" id="scoreRank" placeholder="15000">
+            </div>
+            <button class="btn btn-primary" onclick="addScore()">录入成绩</button>
+            <div class="result" id="addScoreResult"></div>
+        </div>
+    </div>
+    
+    <!-- 院校接口 -->
+    <div id="school" class="tab-content">
+        <div class="section">
+            <div class="section-title">
+                <span class="method get">GET</span>
+                获取院校列表
+            </div>
+            <div class="form-group">
+                <label>省份（可选）</label>
+                <input type="text" id="schoolProvince" placeholder="广东">
+            </div>
+            <div class="form-group">
+                <label>科类（可选）</label>
+                <input type="text" id="schoolCategory" placeholder="物理类">
+            </div>
+            <button class="btn btn-primary" onclick="getSchools()">获取列表</button>
+            <div class="result" id="getSchoolsResult"></div>
+        </div>
+    </div>
+    
+    <!-- 推荐接口 -->
+    <div id="recommend" class="tab-content">
+        <div class="section">
+            <div class="section-title">
+                <span class="method post">POST</span>
+                生成推荐方案
+            </div>
+            <div class="form-group">
+                <label>考生ID</label>
+                <input type="number" id="recStudentId" placeholder="1">
+            </div>
+            <div class="form-group">
+                <label>使用大模型</label>
+                <select id="recUseLlm" style="width:100%;padding:10px;border-radius:8px;border:1px solid #e5e5e5;">
+                    <option value="false">否（规则引擎）</option>
+                    <option value="true">是（通义千问）</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" onclick="generateRecommendation()">生成推荐</button>
+            <div class="result" id="generateRecResult"></div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">
+                <span class="method get">GET</span>
+                获取推荐结果
+            </div>
+            <div class="form-group">
+                <label>考生ID</label>
+                <input type="number" id="getRecStudentId" placeholder="1">
+            </div>
+            <button class="btn btn-primary" onclick="getRecommendation()">获取结果</button>
+            <div class="result" id="getRecResult"></div>
+        </div>
+    </div>
+    
+    <script>
+        const BASE_URL = 'http://localhost:3000';
+        let token = '';
+        
+        function getToken() {
+            return document.getElementById('token').value;
+        }
+        
+        function updateToken() {
+            token = getToken();
+        }
+        
+        async function request(url, method, data = null) {
+            const options = {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+            
+            const currentToken = getToken();
+            if (currentToken) {
+                options.headers['Authorization'] = 'Bearer ' + currentToken;
+            }
+            
+            if (data) {
+                options.body = JSON.stringify(data);
+            }
+            
+            try {
+                const response = await fetch(url, options);
+                const result = await response.json();
+                return { ok: response.ok, data: result };
+            } catch (error) {
+                return { ok: false, data: { message: error.message } };
+            }
+        }
+        
+        function showResult(elementId, result) {
+            const el = document.getElementById(elementId);
+            el.textContent = JSON.stringify(result.data, null, 2);
+            el.className = 'result ' + (result.ok ? 'success' : 'error');
+        }
+        
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+        }
+        
+        // 认证接口
+        async function sendCode() {
+            const phone = document.getElementById('sendCodePhone').value;
+            const result = await request(`${BASE_URL}/api/auth/send-code`, 'POST', { phone });
+            showResult('sendCodeResult', result);
+        }
+        
+        async function register() {
+            const phone = document.getElementById('regPhone').value;
+            const password = document.getElementById('regPassword').value;
+            const code = document.getElementById('regCode').value;
+            const result = await request(`${BASE_URL}/api/auth/register`, 'POST', { phone, password, code });
+            if (result.ok && result.data.data?.token) {
+                document.getElementById('token').value = result.data.data.token;
+            }
+            showResult('registerResult', result);
+        }
+        
+        async function login() {
+            const phone = document.getElementById('loginPhone').value;
+            const password = document.getElementById('loginPassword').value;
+            const result = await request(`${BASE_URL}/api/auth/login`, 'POST', { phone, password });
+            if (result.ok && result.data.data?.token) {
+                document.getElementById('token').value = result.data.data.token;
+            }
+            showResult('loginResult', result);
+        }
+        
+        // 考生接口
+        async function getStudents() {
+            const result = await request(`${BASE_URL}/api/students`, 'GET');
+            showResult('getStudentsResult', result);
+        }
+        
+        async function addStudent() {
+            const name = document.getElementById('studentName').value;
+            const province = document.getElementById('studentProvince').value;
+            const category = document.getElementById('studentCategory').value;
+            const result = await request(`${BASE_URL}/api/students`, 'POST', { name, province, category });
+            showResult('addStudentResult', result);
+        }
+        
+        async function addScore() {
+            const student_id = parseInt(document.getElementById('scoreStudentId').value);
+            const total_score = parseInt(document.getElementById('scoreTotal').value);
+            const province_rank = parseInt(document.getElementById('scoreRank').value);
+            const result = await request(`${BASE_URL}/api/scores`, 'POST', { 
+                student_id, total_score, province_rank, year: 2024 
+            });
+            showResult('addScoreResult', result);
+        }
+        
+        // 院校接口
+        async function getSchools() {
+            const province = document.getElementById('schoolProvince').value;
+            const category = document.getElementById('schoolCategory').value;
+            let url = `${BASE_URL}/api/schools?limit=10`;
+            if (province) url += `&province=${province}`;
+            if (category) url += `&category=${category}`;
+            const result = await request(url, 'GET');
+            showResult('getSchoolsResult', result);
+        }
+        
+        // 推荐接口
+        async function generateRecommendation() {
+            const student_id = parseInt(document.getElementById('recStudentId').value);
+            const use_llm = document.getElementById('recUseLlm').value === 'true';
+            const result = await request(`${BASE_URL}/api/recommendations/generate`, 'POST', { 
+                student_id, use_llm 
+            });
+            showResult('generateRecResult', result);
+        }
+        
+        async function getRecommendation() {
+            const studentId = document.getElementById('getRecStudentId').value;
+            const result = await request(`${BASE_URL}/api/recommendations/student/${studentId}`, 'GET');
+            showResult('getRecResult', result);
+        }
+    </script>
+</body>
+</html>

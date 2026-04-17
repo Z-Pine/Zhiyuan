@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI推荐结果 - 志愿填报助手</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: #f5f6fa;
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4F86F7 0%, #6B8DD6 100%);
+            padding: 60px 20px 30px;
+            color: #fff;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .back-btn {
+            width: 36px;
+            height: 36px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .back-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: #fff;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 600;
+            position: relative;
+            z-index: 1;
+        }
+
+        .student-info {
+            background: rgba(255,255,255,0.15);
+            border-radius: 16px;
+            padding: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .info-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .info-item span:first-child {
+            opacity: 0.8;
+            font-size: 13px;
+        }
+
+        .info-item span:last-child {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 20px;
+        }
+
+        .section {
+            background: #fff;
+            border-radius: 16px;
+            margin-bottom: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+
+        .section-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title .icon {
+            width: 24px;
+            height: 24px;
+        }
+
+        .section-badge {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+
+        .badge-rush {
+            background: #fff7e6;
+            color: #ff8c00;
+        }
+
+        .badge-safe {
+            background: #e6f7ff;
+            color: #1890ff;
+        }
+
+        .badge-backup {
+            background: #f6ffed;
+            color: #52c41a;
+        }
+
+        .school-list {
+            padding: 12px 20px;
+        }
+
+        .school-item {
+            padding: 14px 0;
+            border-bottom: 1px solid #f5f5f5;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .school-item:last-child {
+            border-bottom: none;
+        }
+
+        .school-main {
+            flex: 1;
+        }
+
+        .school-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .school-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .school-tag {
+            padding: 2px 6px;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+
+        .school-rank {
+            color: #4F86F7;
+            font-weight: 500;
+        }
+
+        .school-prob {
+            text-align: right;
+        }
+
+        .prob-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #52c41a;
+        }
+
+        .prob-label {
+            font-size: 11px;
+            color: #999;
+        }
+
+        .major-section {
+            padding: 16px 20px;
+        }
+
+        .major-item {
+            background: #f8f9fc;
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+
+        .major-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .major-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .major-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .major-category {
+            font-size: 11px;
+            color: #999;
+        }
+
+        .major-detail {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .major-detail-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .major-detail-item svg {
+            width: 14px;
+            height: 14px;
+            opacity: 0.6;
+        }
+
+        .risk-warning {
+            padding: 14px 20px;
+            background: #fff7e6;
+            border-left: 3px solid #ff8c00;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .risk-warning svg {
+            width: 18px;
+            height: 18px;
+            color: #ff8c00;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .risk-content {
+            flex: 1;
+        }
+
+        .risk-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #ff8c00;
+            margin-bottom: 4px;
+        }
+
+        .risk-desc {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .source-section {
+            padding: 14px 20px;
+            background: #f8f9fc;
+        }
+
+        .source-title {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 8px;
+        }
+
+        .source-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .source-item {
+            font-size: 11px;
+            color: #4F86F7;
+            background: #e6f0ff;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .bottom-action {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #fff;
+            padding: 12px 20px;
+            box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4F86F7 0%, #6B8DD6 100%);
+            color: #fff;
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .tabs {
+            display: flex;
+            padding: 0 20px;
+            background: #fff;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 14px 0;
+            text-align: center;
+            font-size: 14px;
+            color: #999;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .tab.active {
+            color: #4F86F7;
+            font-weight: 500;
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 20%;
+            width: 60%;
+            height: 2px;
+            background: #4F86F7;
+            border-radius: 1px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-top">
+            <div class="back-btn">
+                <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+            </div>
+            <div class="header-title">AI推荐结果</div>
+            <div style="width: 36px;"></div>
+        </div>
+        <div class="student-info">
+            <div class="info-row">
+                <div class="info-item">
+                    <span>考生</span>
+                    <span>王小明</span>
+                </div>
+                <div class="info-item">
+                    <span>省份</span>
+                    <span>广东省</span>
+                </div>
+            </div>
+            <div class="info-row">
+                <div class="info-item">
+                    <span>高考分数</span>
+                    <span>586分</span>
+                </div>
+                <div class="info-item">
+                    <span>物理类排名</span>
+                    <span>第12,450名</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" data-tab="school">院校推荐</div>
+        <div class="tab" data-tab="major">专业推荐</div>
+        <div class="tab" data-tab="risk">风险评估</div>
+    </div>
+
+    <div class="content">
+        <div class="tab-content active" id="school-content">
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-title">
+                        <svg class="icon" viewBox="0 0 24 24" fill="#ff8c00"><path d="M12 2L4 7v10l8 5 8-5V7l-8-5zm0 2.5L18 8v8l-6 3.5L6 16V8l6-3.5z"/></svg>
+                        冲刺院校
+                    </div>
+                    <span class="section-badge badge-rush">录取概率 30%</span>
+                </div>
+                <div class="school-list">
+                    <div class="school-item">
+                        <div class="school-main">
+                            <div class="school-name">中山大学</div>
+                            <div class="school-meta">
+                                <span class="school-tag">985</span>
+                                <span class="school-tag">广州</span>
+                                <span class="school-rank">历史最低: 8,200名</span>
+                            </div>
+                        </div>
+                        <div class="school-prob">
+                            <div class="prob-value">28%</div>
+                            <div class="prob-label">录取概率</div>
+                        </div>
+                    </div>
+                    <div class="school-item">
+                        <div class="school-main">
+                            <div class="school-name">华南理工大学</div>
+                            <div class="school-meta">
+                                <span class="school-tag">985</span>
+                                <span class="school-tag">广州</span>
+                                <span class="school-rank">历史最低: 10,000名</span>
+                            </div>
+                        </div>
+                        <div class="school-prob">
+                            <div class="prob-value">32%</div>
+                            <div class="prob-label">录取概率</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-title">
+                        <svg class="icon" viewBox="0 0 24 24" fill="#1890ff"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+                        稳妥院校
+                    </div>
+                    <span class="section-badge badge-safe">录取概率 60-80%</span>
+                </div>
+                <div class="school-list">
+                    <div class="school-item">
+                        <div class="school-main">
+                            <div class="school-name">暨南大学</div>
+                            <div class="school-meta">
+                                <span class="school-tag">211</span>
+                                <span class="school-tag">广州</span>
+                                <span class="school-rank">历史最低: 15,000名</span>
+                            </div>
+                        </div>
+                        <div class="school-prob">
+                            <div class="prob-value">72%</div>
+                            <div class="prob-label">录取概率</div>
+                        </div>
+                    </div>
+                    <div class="school-item">
+                        <div class="school-main">
+                            <div class="school-name">华南师范大学</div>
+                            <div class="school-meta">
+                                <span class="school-tag">211</span>
+                                <span class="school-tag">广州</span>
+                                <span class="school-rank">历史最低: 18,000名</span>
+                            </div>
+                        </div>
+                        <div class="school-prob">
+                            <div class="prob-value">78%</div>
+                            <div class="prob-label">录取概率</div>
+                        </div>
+                    </div>
+                    <div class="school-item">
+                        <div class="school-main">
+                            <div class="school-name">深圳大学</div>
+                            <div class="school-meta">
+                                <span class="school-tag">双非</span>
+                                <span class="school-tag">深圳</span>
+                                <span class="school-rank">历史最低: 20,000名</span>
+                            </div>
+                        </div>
+                        <div class="school-prob">
+                            <div class="prob-value">85%</div>
+                            <div class="prob-label">录取概率</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-title">
+                        <svg class="icon" viewBox="0 0 24 24" fill="#52c41a"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                        保底院校
+                    </div>
+                    <span class="section-badge badge-backup">录取概率 >90%</span>
+                </div>
+                <div class="school-list">
+                    <div class="school-item">
+                        <div class="school-main">
+                            <div class="school-name">广东工业大学</div>
+                            <div class="school-meta">
+                                <span class="school-tag">省重点</span>
+                                <span class="school-tag">广州</span>
+                                <span class="school-rank">历史最低: 35,000名</span>
+                            </div>
+                        </div>
+                        <div class="school-prob">
+                            <div class="prob-value">95%</div>
+                            <div class="prob-label">录取概率</div>
+                        </div>
+                    </div>
+                    <div class="school-item">
+                        <div class="school-main">
+                            <div class="school-name">广州大学</div>
+                            <div class="school-meta">
+                                <span class="school-tag">省重点</span>
+                                <span class="school-tag">广州</span>
+                                <span class="school-rank">历史最低: 40,000名</span>
+                            </div>
+                        </div>
+                        <div class="school-prob">
+                            <div class="prob-value">98%</div>
+                            <div class="prob-label">录取概率</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="major-content">
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-title">
+                        <svg class="icon" viewBox="0 0 24 24" fill="#4F86F7"><path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/></svg>
+                        为您推荐的专业
+                    </div>
+                </div>
+                <div class="major-section">
+                    <div class="major-item">
+                        <div class="major-header">
+                            <span class="major-name">计算机科学与技术</span>
+                            <span class="major-category">工学 · 计算机类</span>
+                        </div>
+                        <div class="major-detail">
+                            <div class="major-detail-item">
+                                <svg viewBox="0 0 24 24" fill="#52c41a"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+                                15-30万/年
+                            </div>
+                            <div class="major-detail-item">
+                                <svg viewBox="0 0 24 24" fill="#1890ff"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>
+                                上升趋势
+                            </div>
+                            <div class="major-detail-item">
+                                <svg viewBox="0 0 24 24" fill="#ff8c00"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                                就业率高
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="major-item">
+                        <div class="major-header">
+                            <span class="major-name">电子信息工程</span>
+                            <span class="major-category">工学 · 电子信息类</span>
+                        </div>
+                        <div class="major-detail">
+                            <div class="major-detail-item">
+                                <svg viewBox="0 0 24 24" fill="#52c41a"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+                                12-25万/年
+                            </div>
+                            <div class="major-detail-item">
+                                <svg viewBox="0 0 24 24" fill="#1890ff"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>
+                                稳定发展
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="major-item">
+                        <div class="major-header">
+                            <span class="major-name">数据科学与大数据技术</span>
+                            <span class="major-category">工学 · 计算机类</span>
+                        </div>
+                        <div class="major-detail">
+                            <div class="major-detail-item">
+                                <svg viewBox="0 0 24 24" fill="#52c41a"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+                                18-35万/年
+                            </div>
+                            <div class="major-detail-item">
+                                <svg viewBox="0 0 24 24" fill="#52c41a"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>
+                                高速增长
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-content" id="risk-content">
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-title">
+                        <svg class="icon" viewBox="0 0 24 24" fill="#ff8c00"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+                        风险提示
+                    </div>
+                </div>
+                <div class="risk-warning">
+                    <svg viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+                    <div class="risk-content">
+                        <div class="risk-title">计算机类专业报考热度较高</div>
+                        <div class="risk-desc">近三年报考人数持续上升，2024年报录比达到8:1。建议同时考虑电子信息类、自动化类等相关专业作为备选。</div>
+                    </div>
+                </div>
+                <div class="risk-warning" style="background: #f6ffed; border-color: #52c41a;">
+                    <svg viewBox="0 0 24 24" style="color: #52c41a;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                    <div class="risk-content">
+                        <div class="risk-title" style="color: #52c41a;">建议勾选"服从调剂"</div>
+                        <div class="risk-desc">您的分数位于院校投档线附近，服从调剂可降低被退档的风险。</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-title">数据来源</div>
+                </div>
+                <div class="source-section">
+                    <div class="source-title">以下数据来自官方公开渠道</div>
+                    <div class="source-list">
+                        <span class="source-item">广东省教育考试院</span>
+                        <span class="source-item">阳光高考网</span>
+                        <span class="source-item">各院校招生网</span>
+                        <span class="source-item">BOSS直聘</span>
+                        <span class="source-item">智联招聘</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-action">
+        <button class="btn btn-secondary">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 6h-2v9H6v2c0 .55.45 1 1 1h11l4 4V7c0-.55-.45-1-1-1zm-4 6V3c0-.55-.45-1-1-1H3c-.55 0-1 .45-1 1v14l4-4h10c.55 0 1-.45 1-1z"/></svg>
+            追问
+        </button>
+        <button class="btn btn-primary">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            保存方案
+        </button>
+    </div>
+
+    <script>
+        const tabs = document.querySelectorAll('.tab');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.getElementById(tab.dataset.tab + '-content').classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

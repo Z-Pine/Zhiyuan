@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>志愿填报助手 - 登录</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: #fff;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            width: 100%;
+            max-width: 420px;
+            overflow: hidden;
+        }
+
+        .login-header {
+            background: linear-gradient(135deg, #4F86F7 0%, #6B8DD6 100%);
+            padding: 40px 40px 60px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+        }
+
+        .header-decoration {
+            position: absolute;
+            pointer-events: none;
+            opacity: 0.15;
+        }
+
+        .deco-book-1 {
+            top: 10px;
+            left: 20px;
+        }
+
+        .deco-book-2 {
+            top: 25px;
+            left: 70px;
+            transform: rotate(-15deg);
+        }
+
+        .deco-graduation {
+            top: 8px;
+            right: 20px;
+        }
+
+        .deco-star-1 {
+            top: 50px;
+            right: 80px;
+        }
+
+        .deco-star-2 {
+            bottom: 30px;
+            left: 30px;
+        }
+
+        .deco-star-3 {
+            bottom: 25px;
+            right: 40px;
+        }
+
+        .deco-book-3 {
+            bottom: 15px;
+            right: 100px;
+            transform: rotate(10deg);
+        }
+
+        .login-header::after {
+            content: '';
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 60px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .logo {
+            position: relative;
+            z-index: 1;
+            width: 50px;
+            height: 50px;
+            margin-bottom: 16px;
+        }
+
+        .logo svg {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            height: 100%;
+        }
+
+        .login-title {
+            position: relative;
+            z-index: 1;
+            color: #fff;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .login-subtitle {
+            position: relative;
+            z-index: 1;
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 14px;
+        }
+
+        .login-body {
+            padding: 50px 40px 40px;
+        }
+
+        .login-tabs {
+            display: flex;
+            margin-bottom: 32px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .login-tab {
+            flex: 1;
+            padding: 12px 0;
+            text-align: center;
+            color: #999;
+            font-size: 15px;
+            cursor: pointer;
+            position: relative;
+            transition: color 0.3s;
+        }
+
+        .login-tab.active {
+            color: #4F86F7;
+            font-weight: 500;
+        }
+
+        .login-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 20%;
+            width: 60%;
+            height: 2px;
+            background: #4F86F7;
+            border-radius: 1px;
+        }
+
+        .login-form {
+            display: none;
+        }
+
+        .login-form.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            color: #333;
+            font-size: 14px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid #e5e5e5;
+            border-radius: 12px;
+            font-size: 15px;
+            transition: all 0.3s;
+            background: #fafafa;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #4F86F7;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(79, 134, 247, 0.1);
+        }
+
+        .form-input::placeholder {
+            color: #bbb;
+        }
+
+        .form-input-icon {
+            position: relative;
+        }
+
+        .form-input-icon .form-input {
+            padding-left: 44px;
+        }
+
+        .form-input-icon svg {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 18px;
+            height: 18px;
+            color: #999;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #4F86F7 0%, #6B8DD6 100%);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 8px;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(79, 134, 247, 0.3);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 28px 0;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #eee;
+        }
+
+        .divider span {
+            padding: 0 16px;
+            color: #999;
+            font-size: 13px;
+        }
+
+        .wechat-login {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 14px;
+            background: #07C160;
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .wechat-login:hover {
+            background: #06AE56;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(12, 193, 96, 0.3);
+        }
+
+        .wechat-login svg {
+            width: 22px;
+            height: 22px;
+        }
+
+        .register-link {
+            text-align: center;
+            margin-top: 24px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .register-link a {
+            color: #4F86F7;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .register-link a:hover {
+            text-decoration: underline;
+        }
+
+        .guest-mode {
+            text-align: center;
+            margin-top: 16px;
+        }
+
+        .guest-mode a {
+            color: #999;
+            font-size: 13px;
+            text-decoration: none;
+        }
+
+        .guest-mode a:hover {
+            color: #666;
+        }
+
+        .features-showcase {
+            display: none;
+            background: #f8f9ff;
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: 24px;
+        }
+
+        .features-showcase h4 {
+            color: #333;
+            font-size: 14px;
+            margin-bottom: 16px;
+            font-weight: 500;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            color: #666;
+            font-size: 13px;
+        }
+
+        .feature-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .feature-icon {
+            width: 32px;
+            height: 32px;
+            background: #fff;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .feature-icon svg {
+            width: 16px;
+            height: 16px;
+            color: #4F86F7;
+        }
+
+        @media (max-width: 480px) {
+            .login-container {
+                border-radius: 20px;
+            }
+
+            .login-header {
+                padding: 32px 24px 50px;
+            }
+
+            .login-body {
+                padding: 40px 24px 32px;
+            }
+
+            .login-title {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <!-- 装饰元素：书本 -->
+            <svg class="header-decoration deco-book-1" width="28" height="32" viewBox="0 0 28 32" fill="none">
+                <rect x="2" y="2" width="18" height="28" rx="2" fill="white"/>
+                <rect x="4" y="4" width="14" height="24" rx="1" stroke="white" stroke-width="1.5" fill="none"/>
+                <line x1="7" y1="10" x2="15" y2="10" stroke="white" stroke-width="1.5"/>
+                <line x1="7" y1="14" x2="15" y2="14" stroke="white" stroke-width="1.5"/>
+                <line x1="7" y1="18" x2="12" y2="18" stroke="white" stroke-width="1.5"/>
+            </svg>
+            <svg class="header-decoration deco-book-2" width="24" height="28" viewBox="0 0 24 28" fill="none">
+                <rect x="2" y="2" width="16" height="24" rx="2" fill="white"/>
+                <rect x="4" y="4" width="12" height="20" rx="1" stroke="white" stroke-width="1.5" fill="none"/>
+                <line x1="7" y1="9" x2="13" y2="9" stroke="white" stroke-width="1.5"/>
+                <line x1="7" y1="13" x2="13" y2="13" stroke="white" stroke-width="1.5"/>
+                <line x1="7" y1="17" x2="10" y2="17" stroke="white" stroke-width="1.5"/>
+            </svg>
+            <svg class="header-decoration deco-book-3" width="22" height="26" viewBox="0 0 22 26" fill="none">
+                <rect x="2" y="2" width="14" height="22" rx="2" fill="white"/>
+                <rect x="4" y="4" width="10" height="18" rx="1" stroke="white" stroke-width="1.5" fill="none"/>
+                <line x1="6" y1="9" x2="12" y2="9" stroke="white" stroke-width="1.5"/>
+                <line x1="6" y1="12" x2="12" y2="12" stroke="white" stroke-width="1.5"/>
+            </svg>
+
+            <!-- 装饰元素：毕业帽 -->
+            <svg class="header-decoration deco-graduation" width="36" height="40" viewBox="0 0 36 40" fill="none">
+                <path d="M18 2L4 12V22C4 28 10 34 18 36C26 34 32 28 32 22V12L18 2Z" fill="white"/>
+                <ellipse cx="18" cy="22" rx="14" ry="6" stroke="white" stroke-width="1.5" fill="none"/>
+                <circle cx="18" cy="8" r="3" fill="white"/>
+                <path d="M10 14L18 10L26 14" stroke="white" stroke-width="1.5" fill="none"/>
+            </svg>
+
+            <!-- 装饰元素：星星 -->
+            <svg class="header-decoration deco-star-1" width="16" height="16" viewBox="0 0 16 16" fill="white">
+                <path d="M8 1L10 5.5L15 6L11.5 9.5L12.5 14.5L8 12L3.5 14.5L4.5 9.5L1 6L6 5.5L8 1Z"/>
+            </svg>
+            <svg class="header-decoration deco-star-2" width="12" height="12" viewBox="0 0 12 12" fill="white">
+                <path d="M6 1L7.5 4L11 4.5L8.5 7L9 10.5L6 8.5L3 10.5L3.5 7L1 4.5L4.5 4L6 1Z"/>
+            </svg>
+            <svg class="header-decoration deco-star-3" width="10" height="10" viewBox="0 0 10 10" fill="white">
+                <path d="M5 0.5L6 3.5L9 4L7 6.5L7.5 9.5L5 8L2.5 9.5L3 6.5L1 4L4 3.5L5 0.5Z"/>
+            </svg>
+
+            <div class="logo">
+                <svg viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="25" cy="25" r="24" fill="white" fill-opacity="0.2"/>
+                    <path d="M25 12L32 22H25L28 38L25 28L22 38L25 22H18L25 12Z" fill="white"/>
+                    <circle cx="25" cy="25" r="6" fill="white" fill-opacity="0.9"/>
+                </svg>
+            </div>
+            <h1 class="login-title">志愿填报助手</h1>
+            <p class="login-subtitle">AI智能推荐 · 让志愿填报更简单</p>
+        </div>
+
+        <div class="login-body">
+            <div class="login-tabs">
+                <div class="login-tab active" data-tab="phone">手机号登录</div>
+                <div class="login-tab" data-tab="account">账号登录</div>
+            </div>
+
+            <form class="login-form active" id="phone-form">
+                <div class="form-group">
+                    <label class="form-label">手机号</label>
+                    <div class="form-input-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/>
+                        </svg>
+                        <input type="tel" class="form-input" placeholder="请输入手机号">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">验证码</label>
+                    <div class="form-input-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                            <path d="M7 11V7a5 5 0 0110 0v4"/>
+                        </svg>
+                        <input type="text" class="form-input" placeholder="请输入验证码">
+                    </div>
+                </div>
+                <button type="button" class="login-btn">获取验证码</button>
+                <div class="register-link">
+                    还没有账号？<a href="#">立即注册</a>
+                </div>
+            </form>
+
+            <form class="login-form" id="account-form">
+                <div class="form-group">
+                    <label class="form-label">用户名 / 手机号</label>
+                    <div class="form-input-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                        <input type="text" class="form-input" placeholder="请输入用户名或手机号">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">密码</label>
+                    <div class="form-input-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                            <path d="M7 11V7a5 5 0 0110 0v4"/>
+                        </svg>
+                        <input type="password" class="form-input" placeholder="请输入密码">
+                    </div>
+                </div>
+                <button type="submit" class="login-btn">登录</button>
+                <div class="register-link">
+                    还没有账号？<a href="#">立即注册</a>
+                </div>
+            </form>
+
+            <div class="divider">
+                <span>其他登录方式</span>
+            </div>
+
+            <button class="wechat-login">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M9.5 4C5.36 4 2 6.69 2 10c0 1.89 1.08 3.56 2.78 4.66L4 17l2.5-1.5c.89.31 1.87.5 2.91.5.22 0 .43-.01.64-.02A5.972 5.972 0 0012 20c3.31 0 6-2.03 6-4.5S12.31 4 9.5 4z"/>
+                    <path d="M17.5 11a2.5 2.5 0 010-5 2.5 2.5 0 000 5z"/>
+                    <path d="M17.5 13c-2.67 0-8 1.34-8 4v1.5h16v-1.5c0-2.66-5.33-4-8-4z"/>
+                </svg>
+                微信一键登录
+            </button>
+
+            <div class="guest-mode">
+                <a href="#">暂不登录，先看看</a>
+            </div>
+
+            <div class="features-showcase">
+                <h4>三大核心功能</h4>
+                <div class="feature-item">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+                            <polyline points="22,4 12,14.01 9,11.01"/>
+                        </svg>
+                    </div>
+                    <span>AI智能推荐院校 & 专业</span>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                            <polyline points="14,2 14,8 20,8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                        </svg>
+                    </div>
+                    <span>历年分数线参考</span>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="16" x2="12" y2="12"/>
+                            <line x1="12" y1="8" x2="12.01" y2="8"/>
+                        </svg>
+                    </div>
+                    <span>就业前景分析</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const tabs = document.querySelectorAll('.login-tab');
+        const forms = document.querySelectorAll('.login-form');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                forms.forEach(form => {
+                    form.classList.remove('active');
+                    if (form.id === tabName + '-form') {
+                        form.classList.add('active');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
