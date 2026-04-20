@@ -4,6 +4,7 @@ const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { query } = require('../config/database');
+const smsService = require('../services/smsService');
 
 const SALT_ROUNDS = 10;
 
@@ -149,19 +150,23 @@ router.post('/send-code',
 
       const { phone } = req.body;
 
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      // 使用短信服务发送验证码
+      const result = await smsService.sendVerificationCode(phone);
 
-      await query(
-        'INSERT INTO verification_codes (phone, code, expires_at, created_at) VALUES ($1, $2, NOW() + INTERVAL \'5 minutes\', NOW())',
-        [phone, code]
-      );
-
-      console.log(`[验证码] 手机号: ${phone}, 验证码: ${code}`);
+      if (!result.success) {
+        return res.status(429).json({
+          success: false,
+          message: result.message
+        });
+      }
 
       res.json({
         success: true,
-        message: '验证码已发送',
-        debugCode: process.env.NODE_ENV === 'development' ? code : undefined
+        message: result.message,
+        // 模拟模式下返回验证码（方便测试）
+        ...(result.code && { debugCode: result.code }),
+        // 显示当前使用的短信服务提供商
+        provider: result.provider
       });
     } catch (error) {
       next(error);
