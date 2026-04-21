@@ -19,14 +19,14 @@ const recommendSchools = async (student, score, profile) => {
   const whereClause = schoolConditions.length > 0 ? `WHERE ${schoolConditions.join(' AND ')}` : '';
 
   const schoolsResult = await query(
-    `SELECT * FROM schools ${whereClause} ORDER BY rank ASC LIMIT 100`,
+    `SELECT * FROM universities ${whereClause} ORDER BY id ASC LIMIT 100`,
     values
   );
 
   const schools = schoolsResult.rows.map(s => ({
     ...s,
-    tags: JSON.parse(s.tags || '[]'),
-    features: JSON.parse(s.features || '[]')
+    tags: s.tags || [],
+    features: s.features || []
   }));
 
   const rushSchools = [];
@@ -59,7 +59,6 @@ const recommendSchools = async (student, score, profile) => {
       city: school.city,
       level: school.level,
       tags: school.tags,
-      rank: school.rank,
       minScore: schoolScore.min_score,
       avgScore: schoolScore.avg_score,
       minRank: schoolScore.min_rank,
