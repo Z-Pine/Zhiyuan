@@ -32,12 +32,12 @@ router.get('/', async (req, res, next) => {
     values.push(Number(limit), offset);
 
     const result = await query(
-      `SELECT * FROM schools ${whereClause} ORDER BY rank ASC, id ASC LIMIT $${paramCount++} OFFSET $${paramCount}`,
+      `SELECT * FROM universities ${whereClause} ORDER BY rank ASC, id ASC LIMIT $${paramCount++} OFFSET $${paramCount}`,
       values
     );
 
     const countResult = await query(
-      `SELECT COUNT(*) FROM schools ${whereClause}`,
+      `SELECT COUNT(*) FROM universities ${whereClause}`,
       values.slice(0, -2)
     );
 
@@ -65,7 +65,7 @@ router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const result = await query('SELECT * FROM schools WHERE id = $1', [id]);
+    const result = await query('SELECT * FROM universities WHERE id = $1', [id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: '院校不存在' });
