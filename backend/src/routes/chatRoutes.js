@@ -5,7 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { authenticateToken } = require('../middleware/auth');
+const { authenticate: authenticateToken } = require('../middleware/auth');
 const { query } = require('../config/database');
 
 /**
