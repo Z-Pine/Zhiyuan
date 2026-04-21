@@ -32,7 +32,7 @@ router.get('/', async (req, res, next) => {
     values.push(Number(limit), offset);
 
     const result = await query(
-      `SELECT * FROM universities ${whereClause} ORDER BY rank ASC, id ASC LIMIT $${paramCount++} OFFSET $${paramCount}`,
+      `SELECT * FROM universities ${whereClause} ORDER BY id ASC LIMIT $${paramCount++} OFFSET $${paramCount}`,
       values
     );
 
@@ -43,8 +43,8 @@ router.get('/', async (req, res, next) => {
 
     const schools = result.rows.map(s => ({
       ...s,
-      tags: JSON.parse(s.tags || '[]'),
-      features: JSON.parse(s.features || '[]')
+      tags: s.tags || [],
+      features: s.features || []
     }));
 
     res.json({
@@ -72,8 +72,8 @@ router.get('/:id', async (req, res, next) => {
     }
 
     const school = result.rows[0];
-    school.tags = JSON.parse(school.tags || '[]');
-    school.features = JSON.parse(school.features || '[]');
+    school.tags = school.tags || [];
+    school.features = school.features || [];
 
     res.json({ success: true, data: school });
   } catch (error) {
