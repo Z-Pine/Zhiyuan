@@ -113,7 +113,7 @@ class RecommendationEngine {
       SELECT 
         s.*,
         array_agg(DISTINCT sm.major_id) as major_ids
-      FROM schools s
+      FROM universities s
       LEFT JOIN school_majors sm ON s.id = sm.school_id
       WHERE s.status = 'active'
       GROUP BY s.id
