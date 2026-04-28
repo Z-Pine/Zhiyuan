@@ -1,9 +1,15 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 import '../providers/student_provider.dart';
 import '../theme/app_theme.dart';
+import 'student_list_page.dart';
+import 'score_form_page.dart';
+import 'profile_form_page.dart';
+import 'recommendation_page.dart';
+// import 'debug_token_page.dart'; // 暂时注释掉
 
 class HomeTab extends StatelessWidget {
   const HomeTab({super.key});
@@ -191,16 +197,19 @@ class HomeTab extends StatelessWidget {
               color: AppTheme.textPrimary,
             ),
           ),
+          // 暂时移除调试按钮
+          // if (kDebugMode)
+          //   TextButton.icon(...),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _buildActionCard(Icons.person_outline, '基本信息', AppTheme.primaryColor)),
+              Expanded(child: _buildActionCard(context, Icons.person_outline, '基本信息', AppTheme.primaryColor)),
               const SizedBox(width: 12),
-              Expanded(child: _buildActionCard(Icons.grade_outlined, '高考成绩', AppTheme.successColor)),
+              Expanded(child: _buildActionCard(context, Icons.grade_outlined, '高考成绩', AppTheme.successColor)),
               const SizedBox(width: 12),
-              Expanded(child: _buildActionCard(Icons.auto_awesome, '智能推荐', AppTheme.warningColor)),
+              Expanded(child: _buildActionCard(context, Icons.psychology_outlined, '学生画像', AppTheme.warningColor)),
               const SizedBox(width: 12),
-              Expanded(child: _buildActionCard(Icons.chat_bubble_outline, '追问', AppTheme.accentColor)),
+              Expanded(child: _buildActionCard(context, Icons.auto_awesome, '智能推荐', AppTheme.accentColor)),
             ],
           ),
         ],
@@ -208,9 +217,62 @@ class HomeTab extends StatelessWidget {
     );
   }
 
-  Widget _buildActionCard(IconData icon, String label, Color color) {
+  Widget _buildActionCard(BuildContext context, IconData icon, String label, Color color) {
     return GestureDetector(
-      onTap: () {},
+      onTap: () {
+        final studentProvider = context.read<StudentProvider>();
+        
+        if (label == '基本信息') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const StudentListPage(),
+            ),
+          );
+        } else if (label == '高考成绩') {
+          if (studentProvider.students.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('请先添加学生信息')),
+            );
+          } else {
+            final student = studentProvider.currentStudent ?? studentProvider.students.first;
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ScoreFormPage(student: student),
+              ),
+            );
+          }
+        } else if (label == '学生画像') {
+          if (studentProvider.students.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('请先添加学生信息')),
+            );
+          } else {
+            final student = studentProvider.currentStudent ?? studentProvider.students.first;
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ProfileFormPage(student: student),
+              ),
+            );
+          }
+        } else if (label == '智能推荐') {
+          if (studentProvider.students.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('请先添加学生信息')),
+            );
+          } else {
+            final student = studentProvider.currentStudent ?? studentProvider.students.first;
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => RecommendationPage(student: student),
+              ),
+            );
+          }
+        }
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(

@@ -110,13 +110,14 @@ class RecommendationEngine {
    */
   async getSchools(client) {
     const result = await client.query(`
-      SELECT 
-        s.*,
-        array_agg(DISTINCT sm.major_id) as major_ids
-      FROM universities s
-      LEFT JOIN school_majors sm ON s.id = sm.school_id
-      WHERE s.status = 'active'
-      GROUP BY s.id
+      SELECT * FROM universities
+      ORDER BY 
+        CASE 
+          WHEN is_985 = true THEN 1
+          WHEN is_211 = true THEN 2
+          ELSE 3
+        END,
+        name
     `);
     return result.rows;
   }
@@ -126,7 +127,7 @@ class RecommendationEngine {
    */
   async getMajors(client) {
     const result = await client.query(`
-      SELECT * FROM majors WHERE status = 'active'
+      SELECT * FROM majors
     `);
     return result.rows;
   }
@@ -140,12 +141,10 @@ class RecommendationEngine {
         a.*,
         s.name as school_name,
         s.level as school_level,
-        s.is_985,
-        s.is_211,
         m.name as major_name,
         m.category as major_category
       FROM admission_scores a
-      JOIN schools s ON a.school_id = s.id
+      JOIN universities s ON a.university_id = s.id
       JOIN majors m ON a.major_id = m.id
       WHERE a.province = $1
         AND a.subject_type = $2
@@ -166,6 +165,18 @@ class RecommendationEngine {
     schools,
     majors
   }) {
+    console.log('🔍 综合推荐 - 调试信息:');
+    console.log(`   院校总数: ${schools.length}`);
+    console.log(`   冲刺ID数: ${levelDistribution.冲刺.length}`);
+    console.log(`   稳妥ID数: ${levelDistribution.稳妥.length}`);
+    console.log(`   保底ID数: ${levelDistribution.保底.length}`);
+    
+    if (levelDistribution.保底.length > 0) {
+      console.log(`   保底ID示例: ${levelDistribution.保底[0]}`);
+      console.log(`   院校ID示例: ${schools[0]?.id}`);
+      console.log(`   ID类型匹配: ${typeof levelDistribution.保底[0]} vs ${typeof schools[0]?.id}`);
+    }
+    
     const recommendations = {
       冲刺: [],
       稳妥: [],
@@ -177,22 +188,24 @@ class RecommendationEngine {
       const schoolMajors = this.getSchoolMajors(school, majors, employmentMatches);
       const riskLevel = riskAssessment.schoolRisks[school.id]?.level || 'medium';
       
-      // 根据位次分层结果分配
-      if (levelDistribution.冲刺.includes(school.id)) {
+      // 根据位次分层结果分配 - 使用字符串比较确保匹配
+      const schoolIdStr = String(school.id);
+      
+      if (levelDistribution.冲刺.some(id => String(id) === schoolIdStr)) {
         recommendations.冲刺.push({
           school,
           majors: schoolMajors,
           risk: riskLevel,
           admissionProbability: this.calculateProbability('冲刺', school, riskLevel)
         });
-      } else if (levelDistribution.稳妥.includes(school.id)) {
+      } else if (levelDistribution.稳妥.some(id => String(id) === schoolIdStr)) {
         recommendations.稳妥.push({
           school,
           majors: schoolMajors,
           risk: riskLevel,
           admissionProbability: this.calculateProbability('稳妥', school, riskLevel)
         });
-      } else if (levelDistribution.保底.includes(school.id)) {
+      } else if (levelDistribution.保底.some(id => String(id) === schoolIdStr)) {
         recommendations.保底.push({
           school,
           majors: schoolMajors,
@@ -201,6 +214,8 @@ class RecommendationEngine {
         });
       }
     }
+    
+    console.log(`   匹配后 - 冲刺: ${recommendations.冲刺.length}, 稳妥: ${recommendations.稳妥.length}, 保底: ${recommendations.保底.length}`);
     
     // 按录取概率排序
     recommendations.冲刺.sort((a, b) => b.admissionProbability - a.admissionProbability);
@@ -219,10 +234,17 @@ class RecommendationEngine {
    * 获取院校匹配的专业
    */
   getSchoolMajors(school, allMajors, employmentMatches) {
-    const matchedMajorIds = employmentMatches.map(m => m.major_id);
-    return allMajors
-      .filter(m => matchedMajorIds.includes(m.id))
-      .slice(0, 5);
+    // 从就业匹配结果中选择前5个专业
+    return employmentMatches
+      .slice(0, 5)
+      .map(match => {
+        const major = allMajors.find(m => m.id === match.major_id);
+        return major ? {
+          ...major,
+          match_score: match.match_score
+        } : null;
+      })
+      .filter(m => m !== null);
   }
   
   /**

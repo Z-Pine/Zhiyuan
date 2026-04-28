@@ -16,10 +16,10 @@ const verifyData = async () => {
     
     // 1. 验证院校数据
     console.log('📚 院校数据验证:');
-    const schoolsCount = await client.query('SELECT COUNT(*) as count FROM schools');
-    const schools985 = await client.query('SELECT COUNT(*) as count FROM schools WHERE is_985 = true');
-    const schools211 = await client.query('SELECT COUNT(*) as count FROM schools WHERE is_211 = true');
-    const schoolsDoubleFirst = await client.query('SELECT COUNT(*) as count FROM schools WHERE is_double_first = true');
+    const schoolsCount = await client.query('SELECT COUNT(*) as count FROM universities');
+    const schools985 = await client.query("SELECT COUNT(*) as count FROM universities WHERE '985' = ANY(level)");
+    const schools211 = await client.query("SELECT COUNT(*) as count FROM universities WHERE '211' = ANY(level)");
+    const schoolsDoubleFirst = await client.query("SELECT COUNT(*) as count FROM universities WHERE 'double_first_class' = ANY(level)");
     
     console.log(`  - 总院校数: ${schoolsCount.rows[0].count}`);
     console.log(`  - 985院校: ${schools985.rows[0].count}`);
@@ -57,14 +57,14 @@ const verifyData = async () => {
     console.log('\n🔗 数据关联性验证:');
     const orphanScores = await client.query(`
       SELECT COUNT(*) as count FROM admission_scores a
-      LEFT JOIN schools s ON a.school_id = s.id
+      LEFT JOIN universities s ON a.university_id = s.id
       WHERE s.id IS NULL
     `);
     console.log(`  - 无效院校关联: ${orphanScores.rows[0].count}条`);
     
     // 5. 验证关键字段完整性
     console.log('\n✅ 关键字段完整性:');
-    const schoolsWithCode = await client.query('SELECT COUNT(*) as count FROM schools WHERE code IS NOT NULL');
+    const schoolsWithCode = await client.query('SELECT COUNT(*) as count FROM universities WHERE code IS NOT NULL');
     const majorsWithCode = await client.query('SELECT COUNT(*) as count FROM majors WHERE code IS NOT NULL');
     const scoresWithMinScore = await client.query('SELECT COUNT(*) as count FROM admission_scores WHERE min_score IS NOT NULL');
     

@@ -186,7 +186,7 @@ function parseCareerPreference(preference) {
 async function getIndustries(client) {
   try {
     const result = await client.query(`
-      SELECT * FROM industries WHERE status = 'active'
+      SELECT * FROM industries
     `);
     return result.rows;
   } catch (error) {
@@ -201,7 +201,7 @@ async function getIndustries(client) {
 async function getCareers(client) {
   try {
     const result = await client.query(`
-      SELECT * FROM careers WHERE status = 'active'
+      SELECT * FROM careers
     `);
     return result.rows;
   } catch (error) {

@@ -11,7 +11,8 @@ class AuthProvider extends ChangeNotifier {
   String? _errorMessage;
 
   AuthProvider(this._authService) {
-    _checkLoginStatus();
+    // 不在构造函数中检查登录状态，由SplashPage主动调用
+    // 这样可以避免阻塞应用启动
   }
 
   AuthState get authState => _authState;
@@ -23,14 +24,25 @@ class AuthProvider extends ChangeNotifier {
     _authState = AuthState.loading;
     notifyListeners();
 
-    final isLoggedIn = await _authService.checkLoginStatus();
-    
-    if (isLoggedIn) {
-      _authState = AuthState.authenticated;
-    } else {
+    try {
+      final isLoggedIn = await _authService.checkLoginStatus();
+      
+      if (isLoggedIn) {
+        _authState = AuthState.authenticated;
+      } else {
+        _authState = AuthState.unauthenticated;
+      }
+    } catch (e) {
+      print('❌ 检查登录状态异常: $e');
       _authState = AuthState.unauthenticated;
     }
+    
     notifyListeners();
+  }
+
+  // 公开方法供外部调用
+  Future<void> checkAuthStatus() async {
+    await _checkLoginStatus();
   }
 
   Future<bool> sendCode(String phone) async {

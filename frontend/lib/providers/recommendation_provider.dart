@@ -23,7 +23,7 @@ class RecommendationProvider extends ChangeNotifier {
   Set<int> get favoriteSchoolIds => _favoriteSchoolIds;
 
   /// 加载学生的最新推荐
-  Future<void> loadRecommendation(int studentId) async {
+  Future<void> loadRecommendation(String studentId) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -47,7 +47,7 @@ class RecommendationProvider extends ChangeNotifier {
   }
 
   /// 生成推荐方案
-  Future<bool> generateRecommendation(int studentId, {bool useLlm = false}) async {
+  Future<bool> generateRecommendation(String studentId, {bool useLlm = false}) async {
     _isGenerating = true;
     _errorMessage = null;
     notifyListeners();

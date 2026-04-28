@@ -28,7 +28,7 @@ class RecommendationDetailPage extends StatelessWidget {
                 _buildAdmissionInfo(),
                 _buildMatchAnalysis(),
                 _buildRecommendedMajors(),
-                _buildSchoolFeatures(),
+                _buildSchoolFeatures(context),
                 const SizedBox(height: 100),
               ],
             ),
@@ -531,7 +531,7 @@ class RecommendationDetailPage extends StatelessWidget {
   }
 
   /// 院校特色
-  Widget _buildSchoolFeatures() {
+  Widget _buildSchoolFeatures(BuildContext context) {
     final features = [
       {'icon': Icons.science, 'title': '科研实力', 'desc': '拥有多个国家级重点实验室'},
       {'icon': Icons.people, 'title': '师资力量', 'desc': '院士领衔的优秀教师团队'},

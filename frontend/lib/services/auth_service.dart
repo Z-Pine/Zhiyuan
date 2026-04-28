@@ -100,12 +100,26 @@ class AuthService {
         final refreshToken = data['refresh_token'];
         final user = data['user'];
 
+        print('✅ 登录成功，准备保存token...');
+        
         await _storageService.setToken(accessToken);
         await _storageService.setRefreshToken(refreshToken);
         await _storageService.setPhone(phone);
         await _storageService.setUserInfo(user);
 
+        print('✅ Token已保存到storage');
+        
         _apiService.setAuthToken(accessToken);
+        
+        print('✅ Token已设置到ApiService');
+        
+        // 验证token是否正确保存和设置
+        final savedToken = await _storageService.getToken();
+        if (savedToken == accessToken) {
+          print('✅ Token验证成功：storage中的token与登录返回的token一致');
+        } else {
+          print('❌ Token验证失败：storage中的token与登录返回的token不一致');
+        }
 
         return {'success': true, 'user': user};
       }
@@ -115,6 +129,7 @@ class AuthService {
         'message': _apiService.getMessage(response) ?? '登录失败',
       };
     } catch (e) {
+      print('❌ 登录异常: $e');
       return {'success': false, 'message': '网络错误'};
     }
   }

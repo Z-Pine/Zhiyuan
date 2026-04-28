@@ -10,7 +10,7 @@ router.get('/profile', async (req, res, next) => {
     const userId = req.user.userId;
     
     const result = await query(
-      `SELECT u.id, u.phone, u.nickname, u.avatar, u.created_at, u.last_login_at,
+      `SELECT u.id, u.phone, u.nickname, u.avatar_url, u.created_at, u.last_login_at,
               json_agg(json_build_object(
                 'id', s.id,
                 'name', s.name,
@@ -52,7 +52,7 @@ router.put('/profile',
       }
 
       if (avatar !== undefined) {
-        updates.push(`avatar = $${paramCount++}`);
+        updates.push(`avatar_url = $${paramCount++}`);
         values.push(avatar);
       }
 
@@ -63,7 +63,7 @@ router.put('/profile',
       updates.push(`updated_at = NOW()`);
       values.push(userId);
 
-      const sql = `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING id, phone, nickname, avatar, updated_at`;
+      const sql = `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING id, phone, nickname, avatar_url, updated_at`;
       
       const result = await query(sql, values);
 

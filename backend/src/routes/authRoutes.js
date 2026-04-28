@@ -38,7 +38,7 @@ router.post('/register',
       const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
       const result = await query(
-        'INSERT INTO users (phone, password, created_at, updated_at) VALUES ($1, $2, NOW(), NOW()) RETURNING id, phone, created_at',
+        'INSERT INTO users (phone, password_hash, created_at, updated_at) VALUES ($1, $2, NOW(), NOW()) RETURNING id, phone, created_at',
         [phone, hashedPassword]
       );
 
@@ -94,7 +94,7 @@ router.post('/login',
       }
 
       const user = result.rows[0];
-      const isValidPassword = await bcrypt.compare(password, user.password);
+      const isValidPassword = await bcrypt.compare(password, user.password_hash);
 
       if (!isValidPassword) {
         return res.status(401).json({ success: false, message: '手机号或密码错误' });
@@ -198,7 +198,7 @@ router.post('/reset-password',
 
       const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
-      await query('UPDATE users SET password = $1, updated_at = NOW() WHERE phone = $2', [hashedPassword, phone]);
+      await query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE phone = $2', [hashedPassword, phone]);
       await query('DELETE FROM verification_codes WHERE phone = $1', [phone]);
 
       res.json({ success: true, message: '密码重置成功' });

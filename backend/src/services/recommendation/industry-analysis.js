@@ -81,7 +81,7 @@ async function getIndustryData(client, majors) {
   try {
     const result = await client.query(`
       SELECT * FROM industries 
-      WHERE name = ANY($1) AND status = 'active'
+      WHERE name = ANY($1)
     `, [Array.from(industryNames)]);
     
     if (result.rows.length > 0) {

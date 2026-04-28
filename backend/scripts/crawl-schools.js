@@ -182,6 +182,15 @@ const CORE_SCHOOLS = [
   { name: '东北财经大学', code: '10173', province: '辽宁', city: '大连', category: '财经', level: '普通', is_985: false, is_211: false, is_double_first: false },
 ];
 
+// 转换 level 字段：is_985/is_211/is_double_first 布尔 → level 数组
+const toLevelArray = (school) => {
+  const levels = [];
+  if (school.is_985) levels.push('985');
+  if (school.is_211) levels.push('211');
+  if (school.is_double_first) levels.push('double_first_class');
+  return levels.length > 0 ? levels : ['ordinary'];
+};
+
 // 将数据导入数据库
 const importSchools = async () => {
   const client = await pool.connect();
@@ -192,37 +201,34 @@ const importSchools = async () => {
     
     let imported = 0;
     for (const school of CORE_SCHOOLS) {
+      const levelArray = toLevelArray(school);
       await client.query(`
-        INSERT INTO schools (name, code, province, city, category, level, is_985, is_211, is_double_first)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        INSERT INTO universities (name, code, province, city, type, level, tags)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         ON CONFLICT (code) DO UPDATE SET
           name = EXCLUDED.name,
           province = EXCLUDED.province,
           city = EXCLUDED.city,
-          category = EXCLUDED.category,
+          type = EXCLUDED.type,
           level = EXCLUDED.level,
-          is_985 = EXCLUDED.is_985,
-          is_211 = EXCLUDED.is_211,
-          is_double_first = EXCLUDED.is_double_first
+          tags = EXCLUDED.tags
       `, [
         school.name,
         school.code,
         school.province,
         school.city,
         school.category,
-        school.level,
-        school.is_985,
-        school.is_211,
-        school.is_double_first
+        levelArray,
+        []
       ]);
       imported++;
       
-      if (imported % 10 === 0) {
+      if (imported % 20 === 0) {
         console.log(`已导入 ${imported}/${CORE_SCHOOLS.length} 所院校`);
       }
       
-      // 随机延迟，避免过快
-      await sleep(getRandomDelay());
+      // 随机延迟，避免过快（仅在需要访问外部API时启用）
+      // await sleep(getRandomDelay());
     }
     
     await client.query('COMMIT');

@@ -1,5 +1,6 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 
 class StorageService {
   static const String _tokenKey = 'auth_token';
@@ -18,52 +19,98 @@ class StorageService {
     _prefs = await SharedPreferences.getInstance();
   }
 
+  // Web平台使用SharedPreferences，移动端使用FlutterSecureStorage
   Future<void> setToken(String token) async {
-    await _secureStorage.write(key: _tokenKey, value: token);
+    if (kIsWeb) {
+      await _prefs.setString(_tokenKey, token);
+      if (kDebugMode) {
+        print('🔑 Token已保存到SharedPreferences: ${token.substring(0, 20)}...');
+      }
+    } else {
+      await _secureStorage.write(key: _tokenKey, value: token);
+    }
   }
 
   Future<String?> getToken() async {
-    return await _secureStorage.read(key: _tokenKey);
+    final token = kIsWeb 
+        ? _prefs.getString(_tokenKey)
+        : await _secureStorage.read(key: _tokenKey);
+    if (kDebugMode && token != null) {
+      print('🔑 读取到Token: ${token.substring(0, 20)}...');
+    } else if (kDebugMode && token == null) {
+      print('❌ 未找到Token');
+    }
+    return token;
   }
 
   Future<void> removeToken() async {
-    await _secureStorage.delete(key: _tokenKey);
+    if (kIsWeb) {
+      await _prefs.remove(_tokenKey);
+    } else {
+      await _secureStorage.delete(key: _tokenKey);
+    }
   }
 
   // T033: Refresh Token管理
   Future<void> setRefreshToken(String token) async {
-    await _secureStorage.write(key: _refreshTokenKey, value: token);
+    if (kIsWeb) {
+      await _prefs.setString(_refreshTokenKey, token);
+    } else {
+      await _secureStorage.write(key: _refreshTokenKey, value: token);
+    }
   }
 
   Future<String?> getRefreshToken() async {
-    return await _secureStorage.read(key: _refreshTokenKey);
+    return kIsWeb 
+        ? _prefs.getString(_refreshTokenKey)
+        : await _secureStorage.read(key: _refreshTokenKey);
   }
 
   Future<void> removeRefreshToken() async {
-    await _secureStorage.delete(key: _refreshTokenKey);
+    if (kIsWeb) {
+      await _prefs.remove(_refreshTokenKey);
+    } else {
+      await _secureStorage.delete(key: _refreshTokenKey);
+    }
   }
 
   Future<void> setUserInfo(Map<String, dynamic> userInfo) async {
     final jsonStr = userInfo.toString();
-    await _secureStorage.write(key: _userKey, value: jsonStr);
+    if (kIsWeb) {
+      await _prefs.setString(_userKey, jsonStr);
+    } else {
+      await _secureStorage.write(key: _userKey, value: jsonStr);
+    }
   }
 
   Future<Map<String, dynamic>?> getUserInfo() async {
-    final jsonStr = await _secureStorage.read(key: _userKey);
+    final jsonStr = kIsWeb 
+        ? _prefs.getString(_userKey)
+        : await _secureStorage.read(key: _userKey);
     if (jsonStr == null) return null;
     return {};
   }
 
   Future<void> removeUserInfo() async {
-    await _secureStorage.delete(key: _userKey);
+    if (kIsWeb) {
+      await _prefs.remove(_userKey);
+    } else {
+      await _secureStorage.delete(key: _userKey);
+    }
   }
 
   Future<void> setPhone(String phone) async {
-    await _secureStorage.write(key: _phoneKey, value: phone);
+    if (kIsWeb) {
+      await _prefs.setString(_phoneKey, phone);
+    } else {
+      await _secureStorage.write(key: _phoneKey, value: phone);
+    }
   }
 
   Future<String?> getPhone() async {
-    return await _secureStorage.read(key: _phoneKey);
+    return kIsWeb 
+        ? _prefs.getString(_phoneKey)
+        : await _secureStorage.read(key: _phoneKey);
   }
 
   Future<void> setOnboardingComplete(bool complete) async {

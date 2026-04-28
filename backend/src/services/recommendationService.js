@@ -13,8 +13,8 @@ const recommendSchools = async (student, score, profile) => {
     values.push(province);
   }
 
-  schoolConditions.push(`category = $${paramCount++}`);
-  values.push(category || '物理类');
+  schoolConditions.push(`type = $${paramCount++}`);
+  values.push(category === '历史类' ? '综合' : category || '理工');
 
   const whereClause = schoolConditions.length > 0 ? `WHERE ${schoolConditions.join(' AND ')}` : '';
 
@@ -37,10 +37,10 @@ const recommendSchools = async (student, score, profile) => {
   
   for (const school of schools) {
     const scoreResult = await query(
-      `SELECT * FROM school_scores 
-       WHERE school_id = $1 AND category = $2 AND year = 2024
+      `SELECT * FROM admission_scores 
+       WHERE university_id = $1 AND subject_type = $2 AND year = 2024
        ORDER BY year DESC LIMIT 1`,
-      [school.id, category || '物理类']
+      [school.id, category === '历史类' ? 'history' : 'physics']
     );
 
     if (scoreResult.rows.length === 0) continue;
@@ -126,7 +126,7 @@ const recommendMajors = async (student, score, profile) => {
 
   const majors = majorsResult.rows.map(m => ({
     ...m,
-    tags: JSON.parse(m.tags || '[]')
+    tags: m.tags || []
   }));
 
   return majors.slice(0, 10).map(major => ({
@@ -151,10 +151,10 @@ const assessRisk = async (student, score, profile) => {
   const warnings = [];
 
   const scoreResult = await query(
-    `SELECT COUNT(*) as cnt FROM school_scores ss
-     JOIN schools s ON s.id = ss.school_id
-     WHERE ss.category = $1 AND ss.min_rank < $2 AND (s.province = $3 OR s.province = '全国')`,
-    [category || '物理类', studentRank, province]
+    `SELECT COUNT(*) as cnt FROM admission_scores ss
+     JOIN universities s ON s.id = ss.university_id
+     WHERE ss.subject_type = $1 AND ss.min_rank < $2 AND (s.province = $3 OR s.province = '全国')`,
+    [category === '历史类' ? 'history' : 'physics', studentRank, province]
   );
 
   const availableSchools = parseInt(scoreResult.rows[0].cnt);
@@ -182,11 +182,11 @@ const assessRisk = async (student, score, profile) => {
 
   const yearResult = await query(
     `SELECT year, COUNT(*) as cnt 
-     FROM school_scores 
-     WHERE category = $1 AND year >= 2021
+     FROM admission_scores 
+     WHERE subject_type = $1 AND year >= 2021
      GROUP BY year 
      ORDER BY year DESC`,
-    [category || '物理类']
+    [category === '历史类' ? 'history' : 'physics']
   );
 
   return {

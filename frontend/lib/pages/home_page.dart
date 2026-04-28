@@ -29,12 +29,23 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    // 延迟加载数据，避免阻塞页面渲染
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
   }
 
   Future<void> _loadData() async {
-    final studentProvider = context.read<StudentProvider>();
-    await studentProvider.loadStudents();
+    if (!mounted) return;
+    
+    try {
+      final studentProvider = context.read<StudentProvider>();
+      // 静默加载，不阻塞UI
+      await studentProvider.loadStudents();
+    } catch (e) {
+      print('⚠️ 加载学生数据失败: $e');
+      // 失败不影响页面显示
+    }
   }
 
   @override

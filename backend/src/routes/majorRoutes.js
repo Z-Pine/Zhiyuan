@@ -38,7 +38,7 @@ router.get('/', async (req, res, next) => {
 
     const majors = result.rows.map(m => ({
       ...m,
-      tags: JSON.parse(m.tags || '[]')
+      tags: m.tags || []
     }));
 
     res.json({
@@ -66,7 +66,7 @@ router.get('/:id', async (req, res, next) => {
     }
 
     const major = result.rows[0];
-    major.tags = JSON.parse(major.tags || '[]');
+    major.tags = major.tags || [];
 
     res.json({ success: true, data: major });
   } catch (error) {

@@ -16,30 +16,32 @@
 async function calculateScoreLevel({ score, rank, province, subjectType, admissionScores }) {
   console.log(`📊 位次分层计算: 分数=${score}, 排名=${rank}, 省份=${province}, 科类=${subjectType}`);
   
-  // 1. 计算历年录取数据的统计特征
-  const scoreStats = analyzeScoreDistribution(admissionScores);
+  // 1. 按院校分组分析
+  const schoolGroups = groupBySchool(admissionScores);
+  console.log(`📋 院校分组: ${Object.keys(schoolGroups).length} 所院校`);
   
-  // 2. 确定分层阈值
-  const thresholds = calculateThresholds(score, rank, scoreStats);
-  
-  // 3. 院校分层
+  // 2. 院校分层
   const levels = {
     冲刺: [],
     稳妥: [],
     保底: []
   };
   
-  // 按院校分组分析
-  const schoolGroups = groupBySchool(admissionScores);
-  
   for (const [schoolId, schoolData] of Object.entries(schoolGroups)) {
-    const schoolScore = calculateSchoolScore(schoolData, scoreStats);
-    const matchResult = matchLevel(schoolScore, thresholds, rank);
+    // 跳过数据不完整的院校
+    if (!schoolId || !schoolData || !schoolData.avgRank) {
+      continue;
+    }
+    
+    // 使用位次差来判断层次
+    const matchResult = matchLevelByRank(schoolData, rank, score);
     
     if (matchResult.level) {
       levels[matchResult.level].push({
         school_id: schoolId,
         school_name: schoolData.name,
+        avg_rank: schoolData.avgRank,
+        avg_score: schoolData.avgScore,
         match_score: matchResult.score,
         admission_probability: matchResult.probability,
         reason: matchResult.reason
@@ -47,10 +49,13 @@ async function calculateScoreLevel({ score, rank, province, subjectType, admissi
     }
   }
   
-  // 4. 排序和筛选
-  levels.冲刺 = sortByMatchScore(levels.冲刺).slice(0, 15);
-  levels.稳妥 = sortByMatchScore(levels.稳妥).slice(0, 20);
-  levels.保底 = sortByMatchScore(levels.保底).slice(0, 15);
+  // 3. 排序和筛选
+  // 冲刺：按录取位次从好到差排序（位次小的在前）
+  levels.冲刺 = levels.冲刺.sort((a, b) => a.avg_rank - b.avg_rank).slice(0, 15);
+  // 稳妥：按录取位次从好到差排序
+  levels.稳妥 = levels.稳妥.sort((a, b) => a.avg_rank - b.avg_rank).slice(0, 20);
+  // 保底：按录取位次从差到好排序（位次大的在前，更保险）
+  levels.保底 = levels.保底.sort((a, b) => b.avg_rank - a.avg_rank).slice(0, 15);
   
   console.log(`✅ 分层完成: 冲刺=${levels.冲刺.length}, 稳妥=${levels.稳妥.length}, 保底=${levels.保底.length}`);
   
@@ -59,70 +64,13 @@ async function calculateScoreLevel({ score, rank, province, subjectType, admissi
     稳妥: levels.稳妥.map(s => s.school_id),
     保底: levels.保底.map(s => s.school_id),
     details: levels,
-    thresholds
-  };
-}
-
-/**
- * 分析分数分布统计
- */
-function analyzeScoreDistribution(admissionScores) {
-  const scores = admissionScores.map(a => a.min_score).filter(s => s > 0);
-  const ranks = admissionScores.map(a => a.min_rank).filter(r => r > 0);
-  
-  scores.sort((a, b) => a - b);
-  ranks.sort((a, b) => a - b);
-  
-  return {
-    score: {
-      min: Math.min(...scores),
-      max: Math.max(...scores),
-      median: scores[Math.floor(scores.length / 2)],
-      q25: scores[Math.floor(scores.length * 0.25)],
-      q75: scores[Math.floor(scores.length * 0.75)],
-      avg: scores.reduce((a, b) => a + b, 0) / scores.length
-    },
-    rank: {
-      min: Math.min(...ranks),
-      max: Math.max(...ranks),
-      median: ranks[Math.floor(ranks.length / 2)],
-      q25: ranks[Math.floor(ranks.length * 0.25)],
-      q75: ranks[Math.floor(ranks.length * 0.75)]
+    thresholds: {
+      studentRank: rank,
+      studentScore: score,
+      冲刺范围: `位次 ${Math.floor(rank * 0.3)} - ${rank}（比考生好30%-100%）`,
+      稳妥范围: `位次 ${rank} - ${Math.floor(rank * 1.5)}（与考生相当）`,
+      保底范围: `位次 ${Math.floor(rank * 1.5)} - ${Math.floor(rank * 2.5)}（比考生差50%-150%）`
     }
-  };
-}
-
-/**
- * 计算分层阈值
- */
-function calculateThresholds(score, rank, scoreStats) {
-  // 基于位次的分层策略（更可靠）
-  const rankThresholds = {
-    // 冲刺：排名比考生好 0-30% 的院校
-    冲刺上限: rank * 0.7,
-    冲刺下限: rank * 1.0,
-    
-    // 稳妥：排名与考生相当 ±30% 的院校
-    稳妥上限: rank * 1.0,
-    稳妥下限: rank * 1.3,
-    
-    // 保底：排名比考生差 30-80% 的院校
-    保底上限: rank * 1.3,
-    保底下限: rank * 1.8
-  };
-  
-  // 基于分数的辅助阈值
-  const scoreDiff = score - scoreStats.score.median;
-  const scoreThresholds = {
-    冲刺: score + 10,      // 比考生高10分以内
-    稳妥: score - 5,       // 比考生低5分左右
-    保底: score - 20       // 比考生低20分以上
-  };
-  
-  return {
-    rank: rankThresholds,
-    score: scoreThresholds,
-    scoreStats
   };
 }
 
@@ -133,158 +81,174 @@ function groupBySchool(admissionScores) {
   const groups = {};
   
   for (const record of admissionScores) {
-    if (!groups[record.school_id]) {
-      groups[record.school_id] = {
-        name: record.school_name,
+    // 使用university_id作为key（数据库返回的字段名）
+    const schoolId = record.university_id;
+    
+    if (!schoolId) {
+      console.log('⚠️ 跳过没有university_id的记录');
+      continue;  // 跳过没有院校ID的记录
+    }
+    
+    if (!groups[schoolId]) {
+      groups[schoolId] = {
+        id: schoolId,  // 添加id字段
+        name: record.school_name || '未知院校',
         level: record.school_level,
-        is_985: record.is_985,
-        is_211: record.is_211,
         scores: [],
         ranks: []
       };
     }
     
-    groups[record.school_id].scores.push(record.min_score);
-    groups[record.school_id].ranks.push(record.min_rank);
+    if (record.min_score && record.min_score > 0) {
+      groups[schoolId].scores.push(record.min_score);
+    }
+    if (record.min_rank && record.min_rank > 0) {
+      groups[schoolId].ranks.push(record.min_rank);
+    }
   }
   
-  // 计算平均录取分数和位次
-  for (const school of Object.values(groups)) {
-    school.avgScore = school.scores.reduce((a, b) => a + b, 0) / school.scores.length;
-    school.avgRank = school.ranks.reduce((a, b) => a + b, 0) / school.ranks.length;
-    school.minRank = Math.min(...school.ranks);
-    school.maxRank = Math.max(...school.ranks);
+  // 计算平均录取分数和位次，并过滤掉数据不足的院校
+  const validGroups = {};
+  
+  for (const [schoolId, school] of Object.entries(groups)) {
+    // 至少需要有分数或位次数据
+    if (school.scores.length === 0 && school.ranks.length === 0) {
+      console.log(`⚠️ 跳过没有有效数据的院校: ${school.name}`);
+      continue;
+    }
+    
+    if (school.scores.length > 0) {
+      school.avgScore = school.scores.reduce((a, b) => a + b, 0) / school.scores.length;
+      school.minScore = Math.min(...school.scores);
+      school.maxScore = Math.max(...school.scores);
+    } else {
+      school.avgScore = 0;
+      school.minScore = 0;
+      school.maxScore = 0;
+    }
+    
+    if (school.ranks.length > 0) {
+      school.avgRank = school.ranks.reduce((a, b) => a + b, 0) / school.ranks.length;
+      school.minRank = Math.min(...school.ranks);
+      school.maxRank = Math.max(...school.ranks);
+    } else {
+      school.avgRank = 0;
+      school.minRank = 0;
+      school.maxRank = 0;
+    }
+    
+    validGroups[schoolId] = school;
   }
   
-  return groups;
-}
-
-/**
- * 计算院校匹配分数
- */
-function calculateSchoolScore(schoolData, scoreStats) {
-  // 综合考量多个因素
-  const factors = {
-    // 位次匹配度 (权重40%)
-    rankMatch: normalizeRank(schoolData.avgRank, scoreStats.rank),
-    
-    // 分数匹配度 (权重30%)
-    scoreMatch: normalizeScore(schoolData.avgScore, scoreStats.score.avg),
-    
-    // 院校层次加成 (权重20%)
-    levelBonus: calculateLevelBonus(schoolData),
-    
-    // 录取稳定性 (权重10%)
-    stability: calculateStability(schoolData)
-  };
+  console.log(`✅ 有效院校分组: ${Object.keys(validGroups).length} 所`);
   
-  // 加权计算最终匹配分 (0-100)
-  const finalScore = 
-    factors.rankMatch * 40 +
-    factors.scoreMatch * 30 +
-    factors.levelBonus * 20 +
-    factors.stability * 10;
+  return validGroups;
+}
+
+/**
+ * 根据位次匹配层次（新算法 - 简单直接）
+ * @param {Object} schoolData - 院校数据
+ * @param {number} studentRank - 考生位次
+ * @param {number} studentScore - 考生分数
+ * @returns {Object} 匹配结果
+ */
+function matchLevelByRank(schoolData, studentRank, studentScore) {
+  const schoolRank = schoolData.avgRank;
+  const schoolScore = schoolData.avgScore;
   
-  return {
-    total: finalScore,
-    factors
-  };
-}
-
-/**
- * 归一化位次 (0-100)
- */
-function normalizeRank(schoolRank, stats) {
-  const range = stats.max - stats.min;
-  if (range === 0) return 50;
-  return 100 - ((schoolRank - stats.min) / range * 100);
-}
-
-/**
- * 归一化分数 (0-100)
- */
-function normalizeScore(schoolScore, avgScore) {
-  const diff = schoolScore - avgScore;
-  // 分数差映射到0-100
-  return Math.max(0, Math.min(100, 50 + diff));
-}
-
-/**
- * 计算院校层次加成
- */
-function calculateLevelBonus(schoolData) {
-  if (schoolData.is_985) return 95;
-  if (schoolData.is_211) return 85;
-  if (schoolData.level === '双一流') return 75;
-  return 60;
-}
-
-/**
- * 计算录取稳定性
- */
-function calculateStability(schoolData) {
-  const rankVariance = schoolData.maxRank - schoolData.minRank;
-  const stability = Math.max(0, 100 - rankVariance / 100);
-  return stability;
-}
-
-/**
- * 匹配层次
- */
-function matchLevel(schoolScore, thresholds, studentRank) {
-  const score = schoolScore.total;
-  const rankMatch = schoolScore.factors.rankMatch;
+  // 位次差异比例（院校位次 / 考生位次）
+  // 比例 < 1: 院校录取位次更好（更难考）→ 冲刺
+  // 比例 ≈ 1: 相当 → 稳妥
+  // 比例 > 1: 院校录取位次更差（更容易考）→ 保底
+  const rankRatio = schoolRank / studentRank;
   
-  // 冲刺档：高分高排名院校，有一定挑战
-  if (score >= 75 && rankMatch >= 60) {
+  // 分数差
+  const scoreDiff = schoolScore - studentScore;
+  
+  // 冲刺档：院校录取位次比考生好 30%-100%
+  // 例如：考生位次15000，院校录取位次7500-15000
+  if (rankRatio >= 0.3 && rankRatio < 1.0) {
+    const probability = 0.15 + (rankRatio) * 0.35; // 0.15-0.50
     return {
       level: '冲刺',
-      score: score,
-      probability: calculateProbability('冲刺', score),
-      reason: '院校层次较高，需要一定冲刺，录取概率适中'
+      score: Math.round(rankRatio * 100), // 30-100分
+      probability: Math.min(0.50, probability),
+      reason: `院校录取位次${Math.round(schoolRank)}优于考生位次${studentRank}，有一定挑战性`
     };
   }
   
-  // 稳妥档：与考生水平匹配
-  if (score >= 55 && score < 80 && rankMatch >= 40 && rankMatch < 70) {
+  // 稳妥档：院校录取位次与考生相当
+  // 位次在考生的 100%-150% 范围内
+  // 例如：考生位次15000，院校录取位次15000-22500
+  if (rankRatio >= 1.0 && rankRatio <= 1.5) {
+    const probability = 0.65 + (1.5 - rankRatio) * 0.15; // 0.65-0.80
     return {
       level: '稳妥',
-      score: score,
-      probability: calculateProbability('稳妥', score),
-      reason: '与考生成绩匹配度较高，录取概率较大'
+      score: Math.round((2 - rankRatio) * 70), // 35-70分
+      probability: Math.min(0.80, probability),
+      reason: `院校录取位次${Math.round(schoolRank)}与考生位次${studentRank}接近，录取概率较大`
     };
   }
   
-  // 保底档：确保能录取
-  if (score < 60 || rankMatch < 40) {
+  // 保底档：院校录取位次比考生差 50%-150%
+  // 例如：考生位次15000，院校录取位次22500-37500
+  if (rankRatio > 1.5 && rankRatio <= 2.5) {
+    const probability = 0.82 + Math.min(0.13, (rankRatio - 1.5) * 0.08);
     return {
       level: '保底',
-      score: score,
-      probability: calculateProbability('保底', score),
-      reason: '录取把握较大，可作为保底选择'
+      score: Math.round(rankRatio * 35), // 52-87分
+      probability: Math.min(0.95, probability),
+      reason: `院校录取位次${Math.round(schoolRank)}低于考生位次${studentRank}，录取把握很大`
     };
   }
   
+  // 超出范围的不推荐
+  if (rankRatio < 0.3) {
+    return { 
+      level: null, 
+      score: 0, 
+      probability: 0, 
+      reason: `院校层次过高（录取位次${Math.round(schoolRank)}远优于考生${studentRank}）`
+    };
+  }
+  
+  if (rankRatio > 2.5) {
+    return { 
+      level: null, 
+      score: 0, 
+      probability: 0, 
+      reason: `院校层次过低（录取位次${Math.round(schoolRank)}远低于考生${studentRank}）`
+    };
+  }
+  
+  return { level: null, score: 0, probability: 0, reason: '未知原因' };
+}
+
+/**
+ * 计算院校匹配分数（保留旧函数以防其他地方使用）
+ */
+function calculateSchoolScore(schoolData, scoreStats) {
+  // 简化版本
+  return {
+    total: 50,
+    factors: {
+      rankMatch: 50,
+      scoreMatch: 50,
+      levelBonus: 50,
+      stability: 50
+    }
+  };
+}
+
+/**
+ * 匹配层次（旧函数，保留以防其他地方使用）
+ */
+function matchLevel(schoolScore, thresholds, studentRank) {
   return { level: null, score: 0, probability: 0, reason: '' };
 }
 
 /**
- * 计算录取概率
- */
-function calculateProbability(level, score) {
-  const baseProb = {
-    '冲刺': 0.35,
-    '稳妥': 0.65,
-    '保底': 0.85
-  };
-  
-  // 根据匹配分数调整概率
-  const adjustment = (score - 50) / 100;
-  return Math.max(0.1, Math.min(0.95, baseProb[level] + adjustment));
-}
-
-/**
- * 按匹配分数排序
+ * 按匹配分数排序（已废弃，保留以防其他地方使用）
  */
 function sortByMatchScore(schools) {
   return schools.sort((a, b) => b.match_score - a.match_score);

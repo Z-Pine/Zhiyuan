@@ -1,170 +1,120 @@
 const express = require('express');
 const router = express.Router();
-const { query } = require('../config/database');
-const { authenticate } = require('../middleware/auth');
+const { pool } = require('../config/database');
 const { RecommendationEngine } = require('../services/recommendation');
+const { authenticate } = require('../middleware/auth');
 
-const recommendationEngine = new RecommendationEngine();
-
+// 所有路由都需要认证
 router.use(authenticate);
 
 /**
- * @route POST /api/recommendations/generate
- * @desc 生成推荐方案（一键生成）
- * @access Private
+ * POST /api/recommendations/generate
+ * 生成推荐方案
  */
-router.post('/generate', async (req, res, next) => {
+router.post('/generate', async (req, res) => {
+  const client = await pool.connect();
+  
   try {
-    const userId = req.user.userId;
     const { student_id, use_llm = false } = req.body;
+    const userId = req.user.userId;
 
-    // 参数验证
-    if (!student_id) {
-      return res.status(400).json({
-        success: false,
-        code: 'MISSING_PARAMS',
-        message: '请指定学生ID'
-      });
-    }
+    console.log(`🎯 开始为学生 ${student_id} 生成推荐方案...`);
 
-    // 验证学生归属
-    const studentCheck = await query(
+    // 1. 获取学生信息
+    const studentResult = await client.query(
       'SELECT * FROM students WHERE id = $1 AND user_id = $2',
       [student_id, userId]
     );
 
-    if (studentCheck.rows.length === 0) {
+    if (studentResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        code: 'STUDENT_NOT_FOUND',
-        message: '学生信息不存在或无权限访问'
+        message: '学生不存在'
       });
     }
 
-    const student = studentCheck.rows[0];
+    const student = studentResult.rows[0];
 
-    // 获取最新成绩
-    const scoreResult = await query(
-      `SELECT * FROM exam_results 
-       WHERE student_id = $1 
-       ORDER BY exam_date DESC, year DESC 
-       LIMIT 1`,
-      [student_id]
-    );
-
-    if (scoreResult.rows.length === 0) {
+    // 2. 检查是否已录入成绩
+    if (!student.score || !student.rank) {
       return res.status(400).json({
         success: false,
-        code: 'SCORE_NOT_FOUND',
         message: '请先录入高考成绩'
       });
     }
 
-    const examResult = scoreResult.rows[0];
-
-    // 获取学生画像
-    const profileResult = await query(
+    // 3. 获取学生画像
+    const profileResult = await client.query(
       'SELECT * FROM student_profiles WHERE student_id = $1',
       [student_id]
     );
 
-    const studentProfile = profileResult.rows[0] || {
-      student_id,
-      user_id: userId,
-      mbti_type: null,
-      holland_code: null,
-      subject_strengths: [],
-      interest_tags: [],
-      ability_tags: [],
-      career_preference: null
+    const profile = profileResult.rows[0] || {};
+
+    // 4. 构建考试成绩对象
+    const examResult = {
+      id: student.id,
+      total_score: student.score,
+      rank: student.rank,
+      province: student.province,
+      subject_type: student.subject_type,
+      subject_scores: student.subject_scores || {}
     };
 
-    // 调用推荐引擎生成方案
-    console.log(`[推荐] 为用户${userId}的学生${student_id}生成推荐方案...`);
-    const recommendation = await recommendationEngine.generateRecommendation(
+    // 5. 构建学生画像对象
+    const studentProfile = {
+      id: student.id,
+      user_id: userId,
+      name: student.name,
+      gender: student.gender,
+      province: student.province,
+      subject_type: student.subject_type,
+      mbti_type: profile.mbti_type,
+      interests: profile.interests || [],
+      career_preferences: profile.career_preferences || {},
+      province_preferences: profile.province_preferences || [],
+      university_type_preferences: profile.university_type_preferences || [],
+      family_expectations: profile.family_expectations
+    };
+
+    // 6. 生成推荐
+    const engine = new RecommendationEngine();
+    const recommendation = await engine.generateRecommendation(
       studentProfile,
       examResult
     );
 
-    // 返回结果
-    res.status(201).json({
-      success: true,
-      code: 'RECOMMENDATION_GENERATED',
-      message: '推荐方案生成成功',
-      data: {
-        recommendation_id: recommendation.recommendation_id,
-        summary: recommendation.summary,
-        冲刺: recommendation.冲刺,
-        稳妥: recommendation.稳妥,
-        保底: recommendation.保底,
-        风险分析: recommendation.风险分析,
-        行业分析: recommendation.行业分析,
-        参考来源: recommendation.参考来源
-      }
-    });
-
-  } catch (error) {
-    console.error('[推荐错误]', error);
-    next(error);
-  }
-});
-
-/**
- * @route GET /api/recommendations/:id
- * @desc 获取推荐详情
- * @access Private
- */
-router.get('/:id', async (req, res, next) => {
-  try {
-    const userId = req.user.userId;
-    const { id } = req.params;
-
-    const result = await query(
-      `SELECT r.*, s.name as student_name, s.id as student_id
-       FROM recommendations r
-       JOIN students s ON s.id = r.student_id
-       WHERE r.id = $1 AND s.user_id = $2`,
-      [id, userId]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        code: 'RECOMMENDATION_NOT_FOUND',
-        message: '推荐方案不存在'
-      });
-    }
-
-    const rec = result.rows[0];
+    console.log('✅ 推荐方案生成成功');
 
     res.json({
       success: true,
-      data: {
-        id: rec.id,
-        student_id: rec.student_id,
-        student_name: rec.student_name,
-        recommendation_data: rec.recommendation_data,
-        created_at: rec.created_at
-      }
+      message: '推荐方案生成成功',
+      data: recommendation
     });
 
   } catch (error) {
-    next(error);
+    console.error('❌ 生成推荐失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '生成推荐失败',
+      error: error.message
+    });
+  } finally {
+    client.release();
   }
 });
 
 /**
- * @route GET /api/recommendations/student/:studentId
- * @desc 获取学生的最新推荐
- * @access Private
+ * GET /api/recommendations/student/:studentId
+ * 获取学生的最新推荐
  */
-router.get('/student/:studentId', async (req, res, next) => {
+router.get('/student/:studentId', async (req, res) => {
   try {
-    const userId = req.user.userId;
     const { studentId } = req.params;
+    const userId = req.user.userId;
 
     // 验证学生归属
-    const studentCheck = await query(
+    const studentCheck = await pool.query(
       'SELECT id FROM students WHERE id = $1 AND user_id = $2',
       [studentId, userId]
     );
@@ -172,129 +122,141 @@ router.get('/student/:studentId', async (req, res, next) => {
     if (studentCheck.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        code: 'STUDENT_NOT_FOUND',
-        message: '学生信息不存在'
+        message: '学生不存在'
       });
     }
 
     // 获取最新推荐
-    const result = await query(
-      `SELECT * FROM recommendations 
-       WHERE student_id = $1 
-       ORDER BY created_at DESC 
-       LIMIT 1`,
-      [studentId]
-    );
+    const result = await pool.query(`
+      SELECT 
+        id as recommendation_id,
+        recommendation_data,
+        created_at
+      FROM recommendations
+      WHERE student_id = $1
+      ORDER BY created_at DESC
+      LIMIT 1
+    `, [studentId]);
 
     if (result.rows.length === 0) {
       return res.json({
         success: true,
-        code: 'NO_RECOMMENDATION',
-        data: null,
-        message: '暂无推荐数据，请先生成推荐方案'
+        message: '暂无推荐记录',
+        data: null
       });
     }
 
-    const rec = result.rows[0];
+    const recommendation = result.rows[0];
 
     res.json({
       success: true,
       data: {
-        id: rec.id,
-        recommendation_data: rec.recommendation_data,
-        created_at: rec.created_at
+        recommendation_id: recommendation.recommendation_id,
+        ...recommendation.recommendation_data,
+        created_at: recommendation.created_at
       }
     });
 
   } catch (error) {
-    next(error);
+    console.error('获取推荐失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取推荐失败',
+      error: error.message
+    });
   }
 });
 
 /**
- * @route GET /api/recommendations
- * @desc 获取用户的推荐历史列表
- * @access Private
+ * GET /api/recommendations
+ * 获取推荐历史记录
  */
-router.get('/', async (req, res, next) => {
+router.get('/', async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
 
-    const offset = (parseInt(page) - 1) * parseInt(limit);
-
-    const result = await query(
-      `SELECT r.id, r.student_id, s.name as student_name, 
-              r.created_at, r.recommendation_data->>'summary' as summary
-       FROM recommendations r
-       JOIN students s ON s.id = r.student_id
-       WHERE s.user_id = $1
-       ORDER BY r.created_at DESC
-       LIMIT $2 OFFSET $3`,
-      [userId, parseInt(limit), offset]
-    );
+    // 获取推荐列表
+    const result = await pool.query(`
+      SELECT 
+        r.id,
+        r.student_id,
+        r.recommendation_data,
+        r.created_at,
+        s.name as student_name
+      FROM recommendations r
+      JOIN students s ON r.student_id = s.id
+      WHERE r.user_id = $1
+      ORDER BY r.created_at DESC
+      LIMIT $2 OFFSET $3
+    `, [userId, limit, offset]);
 
     // 获取总数
-    const countResult = await query(
-      `SELECT COUNT(*) as total
-       FROM recommendations r
-       JOIN students s ON s.id = r.student_id
-       WHERE s.user_id = $1`,
+    const countResult = await pool.query(
+      'SELECT COUNT(*) FROM recommendations WHERE user_id = $1',
       [userId]
     );
+
+    const total = parseInt(countResult.rows[0].count);
 
     res.json({
       success: true,
       data: {
-        list: result.rows,
+        recommendations: result.rows,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
-          total: parseInt(countResult.rows[0].total),
-          total_pages: Math.ceil(parseInt(countResult.rows[0].total) / parseInt(limit))
+          total,
+          totalPages: Math.ceil(total / limit)
         }
       }
     });
 
   } catch (error) {
-    next(error);
+    console.error('获取推荐历史失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取推荐历史失败',
+      error: error.message
+    });
   }
 });
 
 /**
- * @route POST /api/recommendations/:id/feedback
- * @desc 提交推荐反馈
- * @access Private
+ * POST /api/recommendations/:id/feedback
+ * 提交推荐反馈
  */
-router.post('/:id/feedback', async (req, res, next) => {
+router.post('/:id/feedback', async (req, res) => {
   try {
-    const userId = req.user.userId;
     const { id } = req.params;
+    const userId = req.user.userId;
     const { rating, comment } = req.body;
 
     // 验证推荐归属
-    const checkResult = await query(
-      `SELECT r.id FROM recommendations r
-       JOIN students s ON s.id = r.student_id
-       WHERE r.id = $1 AND s.user_id = $2`,
+    const checkResult = await pool.query(
+      'SELECT id FROM recommendations WHERE id = $1 AND user_id = $2',
       [id, userId]
     );
 
     if (checkResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        code: 'RECOMMENDATION_NOT_FOUND',
-        message: '推荐方案不存在'
+        message: '推荐不存在'
       });
     }
 
     // 保存反馈
-    await query(
-      `INSERT INTO recommendation_feedback 
-       (recommendation_id, user_id, rating, comment, created_at)
-       VALUES ($1, $2, $3, $4, NOW())`,
-      [id, userId, rating, comment]
-    );
+    await pool.query(`
+      INSERT INTO recommendation_feedback (
+        recommendation_id, user_id, rating, comment, created_at
+      ) VALUES ($1, $2, $3, $4, NOW())
+      ON CONFLICT (recommendation_id) 
+      DO UPDATE SET 
+        rating = $3,
+        comment = $4,
+        updated_at = NOW()
+    `, [id, userId, rating, comment]);
 
     res.json({
       success: true,
@@ -302,7 +264,48 @@ router.post('/:id/feedback', async (req, res, next) => {
     });
 
   } catch (error) {
-    next(error);
+    console.error('提交反馈失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '提交反馈失败',
+      error: error.message
+    });
+  }
+});
+
+/**
+ * DELETE /api/recommendations/:id
+ * 删除推荐记录
+ */
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.userId;
+
+    const result = await pool.query(
+      'DELETE FROM recommendations WHERE id = $1 AND user_id = $2 RETURNING id',
+      [id, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: '推荐不存在'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: '删除成功'
+    });
+
+  } catch (error) {
+    console.error('删除推荐失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '删除推荐失败',
+      error: error.message
+    });
   }
 });
 

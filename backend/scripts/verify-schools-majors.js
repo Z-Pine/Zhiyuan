@@ -15,14 +15,14 @@ const verifyData = async () => {
     
     // 1. 院校总体统计
     console.log('📚 【院校数据概览】');
-    const schoolsTotal = await client.query('SELECT COUNT(*) as count FROM schools');
+    const schoolsTotal = await client.query('SELECT COUNT(*) as count FROM universities');
     console.log(`总院校数: ${schoolsTotal.rows[0].count} 所\n`);
     
-    // 2. 按层次统计
+    // 2. 按层次统计（level 是数组，需要 UNNEST 展开）
     console.log('📊 按层次分布:');
     const byLevel = await client.query(`
       SELECT level, COUNT(*) as count 
-      FROM schools 
+      FROM universities, UNNEST(level) as level
       GROUP BY level 
       ORDER BY count DESC
     `);
@@ -34,7 +34,7 @@ const verifyData = async () => {
     console.log('\n📍 按省份分布(前10):');
     const byProvince = await client.query(`
       SELECT province, COUNT(*) as count 
-      FROM schools 
+      FROM universities 
       GROUP BY province 
       ORDER BY count DESC 
       LIMIT 10
@@ -46,23 +46,23 @@ const verifyData = async () => {
     // 4. 按类别统计
     console.log('\n🏫 按类别分布:');
     const byCategory = await client.query(`
-      SELECT category, COUNT(*) as count 
-      FROM schools 
-      GROUP BY category 
+      SELECT type as category, COUNT(*) as count 
+      FROM universities 
+      GROUP BY type 
       ORDER BY count DESC
     `);
     byCategory.rows.forEach(row => {
-      console.log(`  ${row.category}: ${row.count} 所`);
+      console.log(`  ${row.category || '未分类'}: ${row.count} 所`);
     });
     
     // 5. 985/211/双一流统计
     console.log('\n⭐ 重点院校统计:');
     const stats = await client.query(`
       SELECT 
-        SUM(CASE WHEN is_985 THEN 1 ELSE 0 END) as c985,
-        SUM(CASE WHEN is_211 THEN 1 ELSE 0 END) as c211,
-        SUM(CASE WHEN is_double_first THEN 1 ELSE 0 END) as cdouble
-      FROM schools
+        SUM(CASE WHEN '985' = ANY(level) THEN 1 ELSE 0 END) as c985,
+        SUM(CASE WHEN '211' = ANY(level) THEN 1 ELSE 0 END) as c211,
+        SUM(CASE WHEN 'double_first_class' = ANY(level) THEN 1 ELSE 0 END) as cdouble
+      FROM universities
     `);
     console.log(`  985院校: ${stats.rows[0].c985} 所`);
     console.log(`  211院校: ${stats.rows[0].c211} 所`);
@@ -71,14 +71,14 @@ const verifyData = async () => {
     // 6. 显示部分985院校
     console.log('\n🏆 部分985院校示例:');
     const top985 = await client.query(`
-      SELECT name, province, city, category 
-      FROM schools 
-      WHERE is_985 = true 
+      SELECT name, province, city, type as category 
+      FROM universities 
+      WHERE '985' = ANY(level)
       ORDER BY name 
       LIMIT 10
     `);
     top985.rows.forEach((row, i) => {
-      console.log(`  ${i+1}. ${row.name} (${row.province}${row.city ? '·' + row.city : ''}) - ${row.category}`);
+      console.log(`  ${i+1}. ${row.name} (${row.province}${row.city ? '·' + row.city : ''}) - ${row.category || '综合'}`);
     });
     
     // 7. 专业总体统计
@@ -134,8 +134,8 @@ const verifyData = async () => {
         SUM(CASE WHEN code IS NOT NULL AND code != '' THEN 1 ELSE 0 END) as has_code,
         SUM(CASE WHEN name IS NOT NULL AND name != '' THEN 1 ELSE 0 END) as has_name,
         SUM(CASE WHEN province IS NOT NULL AND province != '' THEN 1 ELSE 0 END) as has_province,
-        SUM(CASE WHEN level IS NOT NULL AND level != '' THEN 1 ELSE 0 END) as has_level
-      FROM schools
+        SUM(CASE WHEN level IS NOT NULL AND array_length(level, 1) > 0 THEN 1 ELSE 0 END) as has_level
+      FROM universities
     `);
     console.log('\n院校字段完整率:');
     console.log(`  代码: ${schoolFields.rows[0].has_code}/${schoolFields.rows[0].total} (${(schoolFields.rows[0].has_code/schoolFields.rows[0].total*100).toFixed(1)}%)`);

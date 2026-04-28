@@ -22,9 +22,9 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   void initState() {
     super.initState();
     
-    // 初始化动画控制器
+    // 初始化动画控制器（缩短动画时间）
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 800),
       vsync: this,
     );
 
@@ -45,10 +45,8 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
     // 启动动画
     _controller.forward();
 
-    // 延迟后检查登录状态并跳转
-    Timer(const Duration(milliseconds: 2500), () {
-      _checkAuthAndNavigate();
-    });
+    // 立即检查登录状态（不等待动画完成）
+    _checkAuthAndNavigate();
   }
 
   @override
@@ -58,19 +56,37 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   }
 
   Future<void> _checkAuthAndNavigate() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.checkAuthStatus();
-
     if (!mounted) return;
+    
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      
+      // 等待最短动画时间（800ms）以避免闪烁
+      await Future.wait([
+        authProvider.checkAuthStatus(),
+        Future.delayed(const Duration(milliseconds: 800)),
+      ]);
+      
+      if (!mounted) return;
 
-    if (authProvider.isAuthenticated) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomePage()),
-      );
-    } else {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginPage()),
-      );
+      // 根据认证状态导航
+      if (authProvider.isAuthenticated) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const HomePage()),
+        );
+      } else {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+        );
+      }
+    } catch (e) {
+      print('❌ 检查登录状态失败: $e');
+      // 出错时默认跳转到登录页
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+        );
+      }
     }
   }
 
@@ -177,81 +193,6 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
               );
             },
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 简化的启动页（用于快速启动）
-class SimpleSplashPage extends StatefulWidget {
-  const SimpleSplashPage({Key? key}) : super(key: key);
-
-  @override
-  State<SimpleSplashPage> createState() => _SimpleSplashPageState();
-}
-
-class _SimpleSplashPageState extends State<SimpleSplashPage> {
-  @override
-  void initState() {
-    super.initState();
-    Timer(const Duration(seconds: 2), () {
-      _checkAuthAndNavigate();
-    });
-  }
-
-  Future<void> _checkAuthAndNavigate() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.checkAuthStatus();
-
-    if (!mounted) return;
-
-    if (authProvider.isAuthenticated) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomePage()),
-      );
-    } else {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginPage()),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.blue.shade600,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Icon(
-                Icons.school,
-                size: 50,
-                color: Colors.blue.shade600,
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              '志愿填报助手',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 48),
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-          ],
         ),
       ),
     );

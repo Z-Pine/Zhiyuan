@@ -24,12 +24,21 @@ const PROVINCE_BASELINES_2024 = {
   '重庆': { physics: 427, history: 428 },
 };
 
-// 院校层次分数加成
+// 院校层次分数加成（适配 level 数组）
 const SCHOOL_LEVEL_BONUS = {
   '985': { min: 80, max: 150 },
   '211': { min: 50, max: 100 },
-  '双一流': { min: 30, max: 70 },
-  '普通': { min: 0, max: 40 },
+  'double_first_class': { min: 30, max: 70 },
+  'ordinary': { min: 0, max: 40 },
+};
+
+// 从 level 数组中提取院校层次用于加成计算
+const getLevelForBonus = (levelArray) => {
+  if (!Array.isArray(levelArray) || levelArray.length === 0) return 'ordinary';
+  if (levelArray.includes('985')) return '985';
+  if (levelArray.includes('211')) return '211';
+  if (levelArray.includes('double_first_class')) return 'double_first_class';
+  return 'ordinary';
 };
 
 // 热门专业加成
@@ -56,7 +65,8 @@ const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + mi
 // 生成某院校某专业在某省份的分数线
 const generateScore = (school, major, province, year, subjectType) => {
   const baseline = PROVINCE_BASELINES_2024[province][subjectType];
-  const levelBonus = SCHOOL_LEVEL_BONUS[school.level] || SCHOOL_LEVEL_BONUS['普通'];
+  const levelKey = getLevelForBonus(school.level);
+  const levelBonus = SCHOOL_LEVEL_BONUS[levelKey] || SCHOOL_LEVEL_BONUS['ordinary'];
   const majorBonus = HOT_MAJOR_BONUS[major.name] || 0;
   
   // 基础分数 = 一本线 + 院校层次加成 + 专业热度加成 + 随机波动
@@ -85,47 +95,49 @@ const generateScore = (school, major, province, year, subjectType) => {
 // 生成分数线数据
 const generateScores = async () => {
   const client = await pool.connect();
-  
+
   try {
     console.log('开始生成分数线数据...');
-    await client.query('BEGIN');
-    
+
     // 获取所有院校和专业
-    const schoolsResult = await client.query('SELECT id, name, province as school_province, level FROM schools');
+    const schoolsResult = await client.query('SELECT id, name, province, level FROM universities');
     const majorsResult = await client.query('SELECT id, name FROM majors');
-    
+
     const schools = schoolsResult.rows;
     const majors = majorsResult.rows;
-    
+
     console.log(`获取到 ${schools.length} 所院校, ${majors.length} 个专业`);
-    
+
     let generated = 0;
+    let batchCount = 0;
     const years = [2022, 2023, 2024];
     const subjectTypes = ['physics', 'history'];
-    
+
+    await client.query('BEGIN');
+
     // 为每个院校-专业-省份-年份-科类组合生成分数线
     for (const school of schools) {
       // 每所院校随机选择10-30个专业
       const schoolMajors = majors
         .sort(() => 0.5 - Math.random())
         .slice(0, randomInt(10, 30));
-      
+
       for (const major of schoolMajors) {
         // 每个专业在3-5个省份招生
         const targetProvinces = NEW_GAOKAO_PROVINCES
           .sort(() => 0.5 - Math.random())
           .slice(0, randomInt(3, 5));
-        
+
         for (const province of targetProvinces) {
           for (const year of years) {
             for (const subjectType of subjectTypes) {
               const scoreData = generateScore(school, major, province, year, subjectType);
-              
+
               await client.query(`
-                INSERT INTO admission_scores 
-                (school_id, major_id, province, year, subject_type, min_score, min_rank, plan_count, batch)
+                INSERT INTO admission_scores
+                (university_id, major_id, province, year, subject_type, min_score, min_rank, plan_count, batch)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                ON CONFLICT (school_id, major_id, province, year, subject_type) DO UPDATE SET
+                ON CONFLICT (university_id, major_id, province, year, subject_type) DO UPDATE SET
                   min_score = EXCLUDED.min_score,
                   min_rank = EXCLUDED.min_rank,
                   plan_count = EXCLUDED.plan_count
@@ -140,21 +152,26 @@ const generateScores = async () => {
                 scoreData.plan_count,
                 '本科批'
               ]);
-              
+
               generated++;
-              
-              if (generated % 100 === 0) {
-                console.log(`已生成 ${generated} 条分数线数据`);
+              batchCount++;
+
+              // 每500条提交一次事务，防止Neon连接超时
+              if (batchCount >= 500) {
+                await client.query('COMMIT');
+                batchCount = 0;
+                await client.query('BEGIN');
+                console.log(`已生成 ${generated} 条分数线数据（已保存）`);
               }
             }
           }
         }
       }
     }
-    
+
     await client.query('COMMIT');
     console.log(`✅ 分数线数据生成完成！共生成 ${generated} 条数据`);
-    
+
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('分数线数据生成失败:', error);

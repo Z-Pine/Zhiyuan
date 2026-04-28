@@ -163,18 +163,19 @@ function generateSchoolWebsite(school) {
  */
 function generateSchoolIntroduction(school) {
   const parts = [];
+  const level = school.level || [];
   
-  if (school.is_985) {
+  if (level.includes('985')) {
     parts.push('985工程重点建设高校');
-  } else if (school.is_211) {
+  } else if (level.includes('211')) {
     parts.push('211工程重点建设高校');
   }
   
-  if (school.is_double_first) {
+  if (level.includes('double_first_class')) {
     parts.push('双一流建设高校');
   }
   
-  parts.push(`${school.category}类院校`);
+  parts.push(`${school.type || '综合'}类院校`);
   parts.push(`位于${school.province}${school.city ? '·' + school.city : ''}`);
   
   return parts.join('，');

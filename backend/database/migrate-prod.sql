@@ -34,8 +34,11 @@ CREATE TABLE IF NOT EXISTS students (
     gender VARCHAR(10) CHECK (gender IN ('male', 'female')),
     id_card VARCHAR(18),
     province VARCHAR(20) NOT NULL,
+    city VARCHAR(50),
     high_school VARCHAR(100),
     graduation_year INTEGER NOT NULL,
+    category VARCHAR(20),
+    grade VARCHAR(20),
     subject_type VARCHAR(20) NOT NULL CHECK (subject_type IN ('physics', 'history')),
     is_default BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -46,7 +49,39 @@ COMMENT ON TABLE students IS '考生档案表';
 COMMENT ON COLUMN students.subject_type IS '首选科目类型：physics-物理类, history-历史类';
 
 -- ============================================
--- 3. 成绩表 (scores)
+-- 3.1 验证码表 (verification_codes)
+-- ============================================
+CREATE TABLE IF NOT EXISTS verification_codes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    phone VARCHAR(11) NOT NULL,
+    code VARCHAR(10) NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_verification_codes_phone ON verification_codes(phone);
+CREATE INDEX IF NOT EXISTS idx_verification_codes_expires ON verification_codes(expires_at);
+
+-- ============================================
+-- 3.2 对话会话表 (chat_sessions)
+-- ============================================
+CREATE TABLE IF NOT EXISTS chat_sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    recommendation_id UUID REFERENCES recommendations(id) ON DELETE SET NULL,
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'ended', 'archived')),
+    title VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    ended_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_user ON chat_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_status ON chat_sessions(status);
+
+-- ============================================
+-- 4. 成绩表 (scores)
 -- ============================================
 CREATE TABLE IF NOT EXISTS scores (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -112,6 +147,18 @@ CREATE TABLE IF NOT EXISTS profiles (
     -- 专业偏好
     major_preferences TEXT[],
     
+    -- 风险偏好
+    risk_preference VARCHAR(20),
+    
+    -- 职业兴趣
+    career_interest VARCHAR(100),
+    
+    -- 地域偏好
+    region_preference VARCHAR(100),
+    
+    -- 问卷答案
+    answers JSONB DEFAULT '{}',
+    
     -- 是否完成问卷
     is_completed BOOLEAN DEFAULT false,
     
@@ -153,6 +200,9 @@ CREATE TABLE IF NOT EXISTS universities (
     
     -- 特色标签
     features TEXT[] DEFAULT '{}',
+    
+    -- 搜索标签
+    tags TEXT[] DEFAULT '{}',
     
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -199,6 +249,9 @@ CREATE TABLE IF NOT EXISTS majors (
     
     -- 适合人群特征
     suitable_for TEXT[],
+    
+    -- 搜索标签
+    tags TEXT[] DEFAULT '{}',
     
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -330,6 +383,7 @@ COMMENT ON COLUMN major_industries.relevance_score IS '关联度分数 0-100';
 -- ============================================
 CREATE TABLE IF NOT EXISTS recommendations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
     score_id UUID NOT NULL REFERENCES scores(id) ON DELETE CASCADE,
     
@@ -345,6 +399,9 @@ CREATE TABLE IF NOT EXISTS recommendations (
     
     -- 导出格式
     export_format VARCHAR(20),
+    
+    -- 推荐数据JSON
+    recommendation_data JSONB DEFAULT '{}',
     
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -397,14 +454,33 @@ COMMENT ON COLUMN recommendation_items.type IS '推荐类型：sprint-冲刺, st
 COMMENT ON COLUMN recommendation_items.probability IS '录取概率 0-100';
 
 -- ============================================
+-- 12.5 推荐反馈表 (recommendation_feedback)
+-- ============================================
+CREATE TABLE IF NOT EXISTS recommendation_feedback (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    recommendation_id UUID NOT NULL REFERENCES recommendations(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_feedback_recommendation ON recommendation_feedback(recommendation_id);
+CREATE INDEX IF NOT EXISTS idx_feedback_user ON recommendation_feedback(user_id);
+
+-- ============================================
 -- 13. 对话记录表 (chat_messages)
 -- ============================================
 CREATE TABLE IF NOT EXISTS chat_messages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    recommendation_id UUID NOT NULL REFERENCES recommendations(id) ON DELETE CASCADE,
+    session_id UUID REFERENCES chat_sessions(id) ON DELETE CASCADE,
+    recommendation_id UUID REFERENCES recommendations(id) ON DELETE CASCADE,
     
     -- 消息类型
     role VARCHAR(20) NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+    
+    -- 消息内容类型
+    message_type VARCHAR(20) DEFAULT 'text' CHECK (message_type IN ('text', 'image', 'file', 'card')),
     
     -- 消息内容
     content TEXT NOT NULL,

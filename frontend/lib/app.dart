@@ -18,15 +18,18 @@ class ZhiyuanApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       home: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
-          switch (authProvider.authState) {
-            case AuthState.initial:
-            case AuthState.loading:
-              return const SplashPage();
-            case AuthState.authenticated:
-              return const HomePage();
-            case AuthState.unauthenticated:
-              return const LoginPage();
+          // 优化：只在initial状态显示SplashPage
+          // loading状态保持当前页面，避免闪烁
+          if (authProvider.authState == AuthState.initial) {
+            return const SplashPage();
           }
+          
+          if (authProvider.authState == AuthState.authenticated) {
+            return const HomePage();
+          }
+          
+          // unauthenticated 或其他状态显示登录页
+          return const LoginPage();
         },
       ),
     );

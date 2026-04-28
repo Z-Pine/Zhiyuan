@@ -86,7 +86,7 @@ router.get('/:id/scores', async (req, res, next) => {
     const { id } = req.params;
     const { year, category } = req.query;
 
-    const conditions = ['school_id = $1'];
+    const conditions = ['university_id = $1'];
     const values = [id];
     let paramCount = 2;
 
@@ -96,14 +96,14 @@ router.get('/:id/scores', async (req, res, next) => {
     }
 
     if (category) {
-      conditions.push(`category = $${paramCount++}`);
-      values.push(category);
+      conditions.push(`subject_type = $${paramCount++}`);
+      values.push(category === '物理类' ? 'physics' : category === '历史类' ? 'history' : category);
     }
 
     const whereClause = `WHERE ${conditions.join(' AND ')}`;
 
     const result = await query(
-      `SELECT * FROM school_scores ${whereClause} ORDER BY year DESC`,
+      `SELECT * FROM admission_scores ${whereClause} ORDER BY year DESC`,
       values
     );
 

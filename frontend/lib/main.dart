@@ -9,6 +9,7 @@ import 'services/storage_service.dart';
 import 'providers/auth_provider.dart';
 import 'providers/student_provider.dart';
 import 'providers/recommendation_provider.dart';
+import 'providers/profile_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,6 +46,9 @@ void main() async {
         ),
         ChangeNotifierProvider(
           create: (_) => RecommendationProvider(apiService),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => ProfileProvider(apiService),
         ),
       ],
       child: const ZhiyuanApp(),

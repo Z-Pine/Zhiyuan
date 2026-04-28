@@ -301,19 +301,23 @@ const importMajors = async () => {
     let imported = 0;
     for (const major of MAJORS_DATA) {
       await client.query(`
-        INSERT INTO majors (name, code, category, degree_type, duration)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO majors (name, code, category, subcategory, degree_type, duration, tags)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         ON CONFLICT (code) DO UPDATE SET
           name = EXCLUDED.name,
           category = EXCLUDED.category,
+          subcategory = EXCLUDED.subcategory,
           degree_type = EXCLUDED.degree_type,
-          duration = EXCLUDED.duration
+          duration = EXCLUDED.duration,
+          tags = EXCLUDED.tags
       `, [
         major.name,
         major.code,
         major.category,
+        major.category, // subcategory 暂用 category 填充
         major.degree,
-        major.duration
+        major.duration,
+        []              // tags 默认为空数组
       ]);
       imported++;
       

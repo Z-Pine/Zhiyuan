@@ -772,7 +772,7 @@ class _RecommendationResultPageState extends State<RecommendationResultPage>
   Widget? _buildFloatingActionButton() {
     return Consumer<RecommendationProvider>(
       builder: (context, provider, child) {
-        if (provider.currentRecommendation == null) return null;
+        if (provider.currentRecommendation == null) return const SizedBox.shrink();
 
         return FloatingActionButton.extended(
           onPressed: () => _showExportOptions(context),

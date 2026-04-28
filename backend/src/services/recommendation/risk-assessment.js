@@ -104,13 +104,16 @@ function assessSchoolRisk(school) {
 function calculateVolatilityRisk(school) {
   // 根据历年录取分数波动判断
   // 这里简化处理，实际应该查询历史数据
-  const volatilityScore = school.is_985 ? 30 : (school.is_211 ? 25 : 20);
+  const level = school.level || [];
+  const is985 = level.includes('985');
+  const is211 = level.includes('211');
+  const volatilityScore = is985 ? 30 : (is211 ? 25 : 20);
   
   return {
     type: '录取波动',
     level: volatilityScore > 25 ? 'medium' : 'low',
     score: volatilityScore,
-    description: school.is_985 ? '985院校竞争激烈，录取分数波动较大' : '录取分数相对稳定'
+    description: is985 ? '985院校竞争激烈，录取分数波动较大' : '录取分数相对稳定'
   };
 }
 
@@ -120,14 +123,15 @@ function calculateVolatilityRisk(school) {
 function calculateLevelRisk(school) {
   let score = 0;
   let description = '';
+  const level = school.level || [];
   
-  if (school.is_985) {
+  if (level.includes('985')) {
     score = 35;
     description = '985顶尖院校，录取难度极高';
-  } else if (school.is_211) {
+  } else if (level.includes('211')) {
     score = 25;
     description = '211重点院校，录取难度较高';
-  } else if (school.level === '双一流') {
+  } else if (level.includes('double_first_class')) {
     score = 20;
     description = '双一流院校，有一定竞争压力';
   } else {
@@ -177,14 +181,15 @@ function calculateLocationRisk(school) {
  */
 function calculateCompetitionRisk(school) {
   // 基于院校类型判断
-  const highCompetitionCategories = ['综合', '理工', '财经'];
-  const score = highCompetitionCategories.includes(school.category) ? 15 : 10;
+  const highCompetitionTypes = ['综合', '理工', '财经'];
+  const schoolType = school.type || '综合';
+  const score = highCompetitionTypes.includes(schoolType) ? 15 : 10;
   
   return {
     type: '竞争程度',
     level: score >= 15 ? 'medium' : 'low',
     score: score,
-    description: `${school.category}类院校报考人数较多`
+    description: `${schoolType}类院校报考人数较多`
   };
 }
 
